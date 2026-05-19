@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - 添加根目录 `CHANGELOG.md`。
-- 添加 changelog 技能的单文件 `CHANGELOG.md` 维护规则，并明确 `[Unreleased]` 只记录最终变化，未发布内容的后续调整应合并到原条目，且该合并原则适用于所有分类。
+- 添加 changelog 技能的单文件 `CHANGELOG.md` 维护规则，并明确 `[Unreleased]` 只描述下一次发布后的最终变化，已有同一发布事项应更新原条目，且通过正反例说明不记录开发过程。
 
 ## [<version>] - <YYYY-MM-DD>
 
