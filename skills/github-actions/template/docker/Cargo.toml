@@ -6,3 +6,18 @@ edition = "2024"
 [workspace]
 resolver = "3"
 members = ["crates/*"]
+
+[profile.release]
+panic = "abort" # 一旦遇到 panic 就 abort，减少编译体积
+codegen-units = 1 # 编译代码时每次只处理一个代码单元
+lto = true # 启用链接时间优化
+opt-level = 3 # 编译优化
+strip = true # 移除调试符号
+overflow-checks = false # 关闭整数溢出检查
+
+[profile.dev]
+opt-level = 1
+
+# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
