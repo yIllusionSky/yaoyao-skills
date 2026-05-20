@@ -1,23 +1,23 @@
 services:
-  backend:
+  server:
     build:
-      context: ./backend
+      context: ./server
       dockerfile: Dockerfile
-    image: ${BACKEND_IMAGE}:${BACKEND_TAG}
+    image: ${SERVER_IMAGE}:${SERVER_TAG}
     restart: unless-stopped
     ports:
-      - "${BACKEND_PORT}:8080"
+      - "${SERVER_PORT}:8080"
 
-  frontend:
+  client:
     build:
-      context: ./frontend
+      context: ./client
       dockerfile: Dockerfile
-    image: ${FRONTEND_IMAGE}:${FRONTEND_TAG}
+    image: ${CLIENT_IMAGE}:${CLIENT_TAG}
     restart: unless-stopped
     depends_on:
-      - backend
+      - server
     ports:
-      - "${FRONTEND_PORT}:3000"
+      - "${CLIENT_PORT}:3000"
 
   pingap:
     image: vicanso/pingap:latest

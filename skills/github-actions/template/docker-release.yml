@@ -75,73 +75,73 @@ jobs:
         run: |
           eval "$(just update-version)"
 
-          if [ -z "${BACKEND_IMAGE:-}" ] || [ -z "${BACKEND_TAG:-}" ]; then
-            echo "BACKEND_IMAGE and BACKEND_TAG are required."
+          if [ -z "${SERVER_IMAGE:-}" ] || [ -z "${SERVER_TAG:-}" ]; then
+            echo "SERVER_IMAGE and SERVER_TAG are required."
             exit 1
           fi
 
-          if [ "${BACKEND_TAG}" != "${VERSION}" ]; then
-            echo "BACKEND_TAG must match release version: ${BACKEND_TAG} != ${VERSION}"
+          if [ "${SERVER_TAG}" != "${VERSION}" ]; then
+            echo "SERVER_TAG must match release version: ${SERVER_TAG} != ${VERSION}"
             exit 1
           fi
 
-          echo "backend_image=${BACKEND_IMAGE}" >> "$GITHUB_OUTPUT"
-          echo "backend_tag=${BACKEND_TAG}" >> "$GITHUB_OUTPUT"
+          echo "server_image=${SERVER_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "server_tag=${SERVER_TAG}" >> "$GITHUB_OUTPUT"
 
-          if [ -n "${FRONTEND_IMAGE:-}" ] && [ -n "${FRONTEND_TAG:-}" ]; then
-            if [ "${FRONTEND_TAG}" != "${VERSION}" ]; then
-              echo "FRONTEND_TAG must match release version: ${FRONTEND_TAG} != ${VERSION}"
+          if [ -n "${CLIENT_IMAGE:-}" ] && [ -n "${CLIENT_TAG:-}" ]; then
+            if [ "${CLIENT_TAG}" != "${VERSION}" ]; then
+              echo "CLIENT_TAG must match release version: ${CLIENT_TAG} != ${VERSION}"
               exit 1
             fi
 
-            echo "has_frontend=true" >> "$GITHUB_OUTPUT"
-            echo "frontend_image=${FRONTEND_IMAGE}" >> "$GITHUB_OUTPUT"
-            echo "frontend_tag=${FRONTEND_TAG}" >> "$GITHUB_OUTPUT"
+            echo "has_client=true" >> "$GITHUB_OUTPUT"
+            echo "client_image=${CLIENT_IMAGE}" >> "$GITHUB_OUTPUT"
+            echo "client_tag=${CLIENT_TAG}" >> "$GITHUB_OUTPUT"
           else
-            echo "has_frontend=false" >> "$GITHUB_OUTPUT"
+            echo "has_client=false" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: docker/setup-buildx-action@v4
 
-      - name: Build backend image
+      - name: Build server image
         uses: docker/build-push-action@v7
         with:
-          context: ./backend
-          file: ./backend/Dockerfile
+          context: ./server
+          file: ./server/Dockerfile
           push: false
           platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.backend_image }}:${{ steps.meta.outputs.backend_tag }}
+          tags: ${{ steps.meta.outputs.server_image }}:${{ steps.meta.outputs.server_tag }}
           build-args: |
-            APP_BIN=${{ steps.meta.outputs.backend_image }}
+            APP_BIN=${{ steps.meta.outputs.server_image }}
           load: true
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,scope=backend,mode=max
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,scope=server,mode=max
 
-      - name: Build frontend image
-        if: steps.meta.outputs.has_frontend == 'true'
+      - name: Build client image
+        if: steps.meta.outputs.has_client == 'true'
         uses: docker/build-push-action@v7
         with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
+          context: ./client
+          file: ./client/Dockerfile
           push: false
           platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.frontend_image }}:${{ steps.meta.outputs.frontend_tag }}
+          tags: ${{ steps.meta.outputs.client_image }}:${{ steps.meta.outputs.client_tag }}
           load: true
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,scope=frontend,mode=max
+          cache-from: type=gha,scope=client
+          cache-to: type=gha,scope=client,mode=max
 
       - name: Create release package
         shell: bash
         run: |
           mkdir -p release/deploy
 
-          if [ "${{ steps.meta.outputs.has_frontend }}" = "true" ]; then
+          if [ "${{ steps.meta.outputs.has_client }}" = "true" ]; then
             docker save -o release/deploy/docker.tar \
-              "${{ steps.meta.outputs.backend_image }}:${{ steps.meta.outputs.backend_tag }}" \
-              "${{ steps.meta.outputs.frontend_image }}:${{ steps.meta.outputs.frontend_tag }}"
+              "${{ steps.meta.outputs.server_image }}:${{ steps.meta.outputs.server_tag }}" \
+              "${{ steps.meta.outputs.client_image }}:${{ steps.meta.outputs.client_tag }}"
           else
             docker save -o release/deploy/docker.tar \
-              "${{ steps.meta.outputs.backend_image }}:${{ steps.meta.outputs.backend_tag }}"
+              "${{ steps.meta.outputs.server_image }}:${{ steps.meta.outputs.server_tag }}"
           fi
 
           cp docker-compose.yaml release/deploy/

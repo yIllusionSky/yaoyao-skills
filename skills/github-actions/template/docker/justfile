@@ -1,5 +1,5 @@
 update-version:
-    @echo "export BACKEND_IMAGE=$(cd backend && cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].name')"
-    @echo "export BACKEND_TAG=$(cd backend && cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')"
-    @if [ -f frontend/package.json ]; then echo "export FRONTEND_IMAGE=$(cd frontend && bun pm pkg get name 2>/dev/null | tr -d '\"')"; fi
-    @if [ -f frontend/package.json ]; then echo "export FRONTEND_TAG=$(cd frontend && bun pm pkg get version 2>/dev/null | tr -d '\"')"; fi
+    @echo "export SERVER_IMAGE=$(cd server && cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].name')"
+    @echo "export SERVER_TAG=$(cd server && cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')"
+    @if [ -f client/package.json ]; then echo "export CLIENT_IMAGE=$(cd client && bun pm pkg get name 2>/dev/null | tr -d '\"')"; fi
+    @if [ -f client/package.json ]; then echo "export CLIENT_TAG=$(cd client && bun pm pkg get version 2>/dev/null | tr -d '\"')"; fi
