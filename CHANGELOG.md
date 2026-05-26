@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - 添加根目录 `CHANGELOG.md`。
-- 添加 changelog 技能的单文件 `CHANGELOG.md` 维护规则，并明确 `[Unreleased]` 只描述下一次发布后的最终变化，已有同一发布事项应更新原条目，发布 tag 时将 `vX.Y.Z` 对应为不带 `v` 的 changelog 版本区块，并通过两个正反示例说明按最终事项维护。
-- 添加 `github-actions` 技能，按模板维护通用 Rust CI、app / Docker / Tauri tag release workflow，提供约定 `server/` 与 `client/` 分离构建且 Dockerfile 位于各自服务目录的 Docker 项目模板，支持按 Docker 目标架构选择 Rust musl target，并补齐 SvelteKit SSR + TypeScript 客户端模板，同时完善 `git-workflow` 对分支创建失败处理、PR 检查、tag 发布和 release notes 来源的规则。
+- 添加 changelog 技能的单文件 `CHANGELOG.md` 维护规则，并明确 `[Unreleased]` 只描述下一次发布后的最终变化，已有同一发布事项应不改或更新原条目，首版 `[Unreleased]` 只能使用 `Added`，发布 tag 时将 `vX.Y.Z` 对应为不带 `v` 的 changelog 版本区块，并通过两个正反示例说明按最终事项维护。
+- 添加 `github-actions` 技能，按模板维护通用 Rust CI、app / Docker / Tauri tag release workflow，提供约定 `server/` 与 `client/` 分离构建且 Dockerfile 位于各自服务目录的 Docker 项目模板，支持按 Docker 目标架构选择 Rust musl target，并补齐 SvelteKit SSR + TypeScript 客户端模板，同时完善 `git-workflow` 对 changelog 检查、PR 检查、tag 发布和 release notes 来源的规则。
 
 ## [<version>] - <YYYY-MM-DD>
 
