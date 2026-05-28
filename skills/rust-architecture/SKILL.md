@@ -59,6 +59,11 @@ description: Rust 项目架构规范技能。用于设计、创建或调整 Rust
 
 `code` 使用稳定的大写字符串错误码，前端通过 `code` 做展示文案和 i18n 映射；`data` 为业务数据或 `null`。内部错误不直接暴露给客户端，只映射为稳定错误码，并在服务端记录详细错误。
 
+## 格式化与 CI
+
+- 修改 Rust 代码后，在 workspace 根目录只格式化本次修改涉及的 crate：`cargo fmt -p <package>`。
+- CI 检查必须包含本次修改涉及 crate 的 `cargo clippy -p <package> --all-targets --all-features -- -D warnings`。不要默认运行全 workspace clippy，除非本次修改确实影响 workspace 集成层或多个 crate 的公共契约。
+
 ## 测试规则
 
 - 单元测试优先写在当前模块所在文件内，验证单个函数、模块、`domain` 规则、`application` 分支、错误路径和 adapter 映射逻辑。

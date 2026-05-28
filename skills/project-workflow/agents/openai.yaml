@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Workflow"
+  short_description: "项目初始化与大功能 issue/PR/subagent 闭环流程"
+  default_prompt: "使用 $project-workflow 规划或执行项目初始化和大功能实现流程。"

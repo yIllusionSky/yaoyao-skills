@@ -14,6 +14,7 @@
 - `changelog`: 记录项目开发和发布过程中的有意义变更。
 - `rust-architecture`: 规范 Rust CLI、library、后端服务和复杂应用的项目结构、架构边界、错误处理和测试规则。
 - `project-docs`: 规范长期项目文档，包括根 README、子项目 README、架构文档、功能说明和运行维护文档。
+- `project-workflow`: 串联项目初始化、大功能 issue/PR、crate 级 subagent 实现、review 和验收核对流程。
 
 ## 项目目标
 
