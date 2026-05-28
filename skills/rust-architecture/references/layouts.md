@@ -1,5 +1,7 @@
 # Rust 项目布局示例
 
+这些目录树用于说明写法，不是必须创建清单。只创建当前项目实际需要的文件和目录；未使用的能力不要为了模板完整性补齐。
+
 ## 简单 CLI 或小工具
 
 ```text
@@ -41,15 +43,13 @@ src/
 src/
 ├── lib.rs
 ├── error.rs
-├── types.rs
-├── config.rs
-└── client.rs
+└── types.rs
 ```
 
 - `lib.rs` 控制 public API，不塞大量实现。
 - `error.rs` 使用 `thiserror` 定义 crate 自己的结构化错误。
 - `types.rs` 放公共类型。
-- `config.rs` 和 `client.rs` 只在需要时添加。
+- 需要配置时添加 `config.rs`；需要封装外部 client 时添加 `client.rs`。
 - library crate 不应把 `color-eyre` 作为公共错误类型。
 
 ## 后端服务或复杂应用
@@ -60,11 +60,7 @@ src/
 ├── application/
 ├── ports/
 ├── adapters/
-│   ├── http/
-│   ├── cli/
-│   ├── db/
-│   ├── storage/
-│   └── external/
+│   └── <http|cli|db|storage|external>/
 ├── config.rs
 ├── error.rs
 └── main.rs
@@ -73,7 +69,7 @@ src/
 - `main.rs` 负责组装 adapters、application 和配置。
 - HTTP handler、CLI 命令、数据库实现、存储实现、第三方服务接入都放在 `adapters` 下。
 - `application` 通过 `ports` 依赖外部能力，不直接依赖具体实现。
-- `adapters` 子目录只在确实使用对应能力时创建。
+- `adapters` 子目录只在确实使用对应能力时创建；不要照示例补齐全部目录。
 
 ## 拆分后的 Workspace 示例
 
@@ -85,11 +81,7 @@ crates/
 │       ├── application/
 │       ├── ports/
 │       ├── adapters/
-│       │   ├── http/
-│       │   ├── cli/
-│       │   ├── db/
-│       │   ├── storage/
-│       │   └── external/
+│       │   └── <http|cli|db|storage|external>/
 │       ├── config.rs
 │       ├── error.rs
 │       └── main.rs

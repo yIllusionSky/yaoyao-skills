@@ -52,7 +52,7 @@ description: Rust 项目架构规范技能。用于设计、创建或调整 Rust
 
 ```json
 {
-  "code": "xxx",
+  "code": 101,
   "msg": "xxx",
   "data": null
 }
@@ -63,8 +63,9 @@ description: Rust 项目架构规范技能。用于设计、创建或调整 Rust
 ## 测试规则
 
 - 单元测试优先写在当前模块所在文件内，验证单个函数、模块、`domain` 规则、`application` 分支、错误路径和 adapter 映射逻辑。
-- 存在 trait 边界时可用 `mockall`；`mockall` 属性加在 `ports` 的 trait 上，例如 `#[cfg_attr(test, mockall::automock)]`。不要手写 `mock_xxx.rs` 放到 `ports` 里。
+- 模块内单元测试存在 trait 边界时可用 `mockall`；`mockall` 属性加在 `ports` 的 trait 上，例如 `#[cfg_attr(test, mockall::automock)]`。不要手写 `mock_xxx.rs` 放到 `ports` 里。
 - 集成测试写在 `tests/` 目录下，每个文件对应一个明确业务流程、公开 API 或主要能力，文件名表达业务含义，例如 `order_flow.rs`、`callback_flow.rs`、`parser_roundtrip.rs`、`cli_check.rs`、`client_request.rs`。
 - 集成测试用于验证公开 API、模块协作、真实 adapter 或近真实环境。数据库、文件系统等关键依赖尽量使用真实或临时隔离环境；第三方服务使用 sandbox、mock server 或本地 fake service，不打生产环境。
+- `tests/` 集成测试不能依赖 `#[cfg(test)]` 生成的 `Mock*`。优先使用 fake adapter、in-memory adapter 或 mock server；确实需要复用测试工具时，使用显式 feature-gated `test-support`，不要默认把 mock 作为公共 API 暴露。
 - 测试函数在有多步 fallible 操作时优先返回 `Result`；简单断言测试可以直接使用 `assert`。
 - 只写有效测试，不写只验证 mock 配置、getter/setter 或框架默认行为的低价值测试。
