@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rust Architecture"
+  short_description: "Rust 四层架构、CLI、library 与测试规范"
+  default_prompt: "使用 $rust-architecture 规划 Rust 项目的目录结构、架构边界和测试策略。"

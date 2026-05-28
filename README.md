@@ -12,6 +12,7 @@
 - `git-workflow`: 规范 branch、commit、PR、issue 和 tag。
 - `github-actions`: 规范 GitHub Actions CI、app / Docker / Tauri 的 tag release workflow，并提供可复制 assets 和复制脚本。
 - `changelog`: 记录项目开发和发布过程中的有意义变更。
+- `rust-architecture`: 规范 Rust CLI、library、后端服务和复杂应用的项目结构、架构边界、错误处理和测试规则。
 
 ## 项目目标
 
