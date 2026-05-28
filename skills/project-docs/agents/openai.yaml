@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Docs"
+  short_description: "项目 README、架构、功能和运行维护文档规范"
+  default_prompt: "使用 $project-docs 创建或维护项目 README、ARCHITECTURE、features 和 operations 文档。"

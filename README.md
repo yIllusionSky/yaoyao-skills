@@ -13,6 +13,7 @@
 - `github-actions`: 规范 GitHub Actions CI、app / Docker / Tauri 的 tag release workflow，并提供可复制 assets 和复制脚本。
 - `changelog`: 记录项目开发和发布过程中的有意义变更。
 - `rust-architecture`: 规范 Rust CLI、library、后端服务和复杂应用的项目结构、架构边界、错误处理和测试规则。
+- `project-docs`: 规范长期项目文档，包括根 README、子项目 README、架构文档、功能说明和运行维护文档。
 
 ## 项目目标
 
