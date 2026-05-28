@@ -10,7 +10,7 @@
 ## Skills
 
 - `git-workflow`: 规范 branch、commit、PR、issue 和 tag。
-- `github-actions`: 规范 GitHub Actions CI、app / Docker / Tauri 的 tag release workflow，并提供 Docker 项目模板。
+- `github-actions`: 规范 GitHub Actions CI、app / Docker / Tauri 的 tag release workflow，并提供可复制 assets 和复制脚本。
 - `changelog`: 记录项目开发和发布过程中的有意义变更。
 
 ## 项目目标
