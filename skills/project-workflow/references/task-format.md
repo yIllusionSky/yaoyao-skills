@@ -25,6 +25,7 @@
 
 - `<task-id>`：任务包标识，小写字母、数字和 `-`；已存在时追加 `-2`、`-3`。
 - `<project-worktree>`：项目相对路径去掉结尾 `/`，把 `/` 替换为 `-`；例如 `crates/auth` -> `crates-auth`
+- `<task-branch>`：项目任务分支，格式为 `workflow/<task-id>/<project-worktree>`。
 
 ## Task 模板
 
