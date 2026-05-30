@@ -4,6 +4,24 @@
 
 ## 工作区初始化
 
+参考目录布局：
+
+```text
+workspace/
+├── main/
+├── develop/
+│   └── .workflow/
+│       └── <task-id>/
+│           ├── task.md
+│           ├── log.md
+│           └── <project-worktree>/
+│               ├── task.md
+│               └── log.md
+└── <project-worktree>/
+    ├── .skills
+    └── <project-path>/
+```
+
 1. 工作范围是 `develop/`，后续主集成、根配置、跨项目检查都在 `develop` worktree 中执行。
 2. 如果 `develop/` 不存在，从 `main/` 创建：
 
@@ -25,7 +43,8 @@ git -C main worktree add ../develop develop
 3. 根据用户需求或总体验收 review 反馈，在 `develop/.workflow/<task-id>/` 创建或更新根 `task.md` 和 `log.md`。
 4. 分析是否需要额外创建独立项目。项目指 monorepo 中可独立实现、测试或委派的子目录，例如 `apps/<name>`、`crates/<name>`、`packages/<name>`。
 5. 需要新增独立项目时，先在 `develop` 中初始化项目结构。
-6. 为每个需要独立实现的项目创建或更新 `develop/.workflow/<task-id>/<project-worktree>/task.md` 和 `log.md`。
+6. 每个项目必须确定 `project-path` 和 `project-worktree`；`project-path` 是 monorepo 内真实项目路径，`project-worktree` 是外层 worktree 目录名。
+7. 为每个需要独立实现的项目创建或更新 `develop/.workflow/<task-id>/<project-worktree>/task.md` 和 `log.md`。
 
 ### 阶段 2：准备项目 worktree
 
@@ -36,12 +55,17 @@ git -C main worktree add ../develop develop
 git -C develop worktree add --detach ../<project-worktree> develop
 ```
 
-`<project-worktree>` 由项目相对路径归一化得到：去掉结尾 `/`，把 `/` 替换为 `-`，例如 `crates/auth` -> `crates-auth`。
+`<project-worktree>` 由 `<project-path>` 归一化得到：去掉结尾 `/`，把 `/` 替换为 `-`，例如 `apps/backend` -> `apps-backend`。
 `.skills` 每行一个技能名；`.gitignore` 忽略 `.skills`。
 
 ### 阶段 3：执行和集成
 
-1. 创建阶段：同一轮内为所有需要独立实现的项目创建 implementation subagent；创建阶段未完成前，不得等待任何 subagent。创建时必须告诉对方“你是 implementation subagent”，并告知它负责的 `project-worktree` 和 `workflow/<task-id>/<project-worktree>`。
+1. 创建阶段：同一轮内为所有需要独立实现的项目创建 implementation subagent；创建阶段未完成前，不得等待任何 subagent。创建时必须告诉对方“你是 implementation subagent”，必须使用 `project-workflow`，读取 `task-format` 和 `subagent-flow`，并告知：
+   - `project-worktree`
+   - `project-path`
+   - `workflow/<task-id>/<project-worktree>`
+   - `.workflow/<task-id>/<project-worktree>/task.md`
+   - `.workflow/<task-id>/<project-worktree>/log.md`
 2. 等待和集成阶段：所有 implementation subagent 创建完成后才开始等待结果；任一 subagent 完成实现、自测和 commit 后，立即在 `develop` 中 merge 对应项目分支。
 
 ```bash

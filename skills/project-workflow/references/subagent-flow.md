@@ -1,14 +1,22 @@
 # Subagent Flow
 
-本参考只适用于 implementation subagent。subagent 只能在 main agent 指定的 `project-worktree`、`workflow/<task-id>/<project-worktree>` 和任务范围内工作。
+本参考只适用于 implementation subagent。subagent 只能在 main agent 指定的 `project-worktree`、`project-path`、`workflow/<task-id>/<project-worktree>` 和任务范围内工作。
 
 ## Main Agent 下发要求
 
-必须知道自己负责的 `project-worktree` 和 `workflow/<task-id>/<project-worktree>`，并且只能修改该 worktree。读取该 worktree 下的 `.skills` 加载所需技能。
+必须知道自己负责的 `project-worktree`、`project-path`、`workflow/<task-id>/<project-worktree>`、项目 `task.md` 路径和项目 `log.md` 路径。读取该 worktree 下的 `.skills` 加载所需技能。
+
+以下路径均相对 `project-worktree` 根目录。
+
+只能修改：
+
+- `<project-path>/`
+- `.workflow/<task-id>/<project-worktree>/task.md`
+- `.workflow/<task-id>/<project-worktree>/log.md`
 
 ## 工作流程
 
-1. 根据 `workflow/<task-id>/<project-worktree>` 读取 `.workflow/<task-id>/<project-worktree>/task.md`。
+1. 读取 main agent 下发的项目 `task.md`。
 2. 确认当前 worktree 状态：
 
 ```bash
@@ -35,7 +43,7 @@ git switch -c workflow/<task-id>/<project-worktree>
 git switch workflow/<task-id>/<project-worktree>
 ```
 
-5. 在自己的 `project-worktree` 中完成任务。
+5. 在自己的 `project-worktree` 中，只修改 `project-path` 和对应 workflow 记录。
 6. 运行必要自测，先根据结果更新 `.workflow/<task-id>/<project-worktree>/log.md` 和 `task.md`。
 7. `log.md` 和 `task.md` 更新完成后，再提交 commit；无论自测通过或失败都要提交，commit message 写具体变更语义。
 8. 若自测失败，根据反馈回到第 5 步继续修改。

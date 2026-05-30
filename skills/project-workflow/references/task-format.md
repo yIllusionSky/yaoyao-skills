@@ -1,30 +1,10 @@
 # Task Format
 
-## 目录
-
-```text
-项目/
-├── develop/
-│   └── .workflow/
-│       └── <task-id>/
-│           ├── task.md
-│           ├── log.md
-│           └── <project-worktree>/
-│               ├── task.md
-│               └── log.md
-├── main/
-├── crates-auth/
-│   └── .skills
-├── packages-ui/
-│   └── .skills
-└── apps-web/
-    └── .skills
-```
-
 ## 命名
 
 - `<task-id>`：任务包标识，小写字母、数字和 `-`；已存在时追加 `-2`、`-3`。
-- `<project-worktree>`：项目相对路径去掉结尾 `/`，把 `/` 替换为 `-`；例如 `crates/auth` -> `crates-auth`
+- `<project-path>`：monorepo 内真实项目路径，例如 `apps/backend`。
+- `<project-worktree>`：由 `<project-path>` 去掉结尾 `/`，把 `/` 替换为 `-` 得到；例如 `apps/backend` -> `apps-backend`
 
 ## Task 模板
 
