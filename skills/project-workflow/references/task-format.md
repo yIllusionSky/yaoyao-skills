@@ -25,7 +25,6 @@
 
 - `<task-id>`：任务包标识，小写字母、数字和 `-`；已存在时追加 `-2`、`-3`。
 - `<project-worktree>`：项目相对路径去掉结尾 `/`，把 `/` 替换为 `-`；例如 `crates/auth` -> `crates-auth`
-- `<task-branch>`：项目任务分支，格式为 `workflow/<task-id>/<project-worktree>`。
 
 ## Task 模板
 
@@ -85,3 +84,4 @@ Status: <pending|changes requested|passed>
 
 - 新日志写在 `Log` 下最上方。
 - 可按需增加 `Notes`。
+- `blocked` 只在用户明确表示暂不实现或不需要该功能时使用，不由 agent 因执行失败自行设置。

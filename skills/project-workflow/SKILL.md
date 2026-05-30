@@ -1,6 +1,6 @@
 ---
 name: project-workflow
-description: 规划和执行本地仓库中的多项目任务编排。Use when the user asks to 拆分复杂开发任务、维护 develop/.workflow/<task-id>/ 任务记录、使用 detached worktree 隔离项目实现、分派 subagent 实现、发起 review、将项目分支 merge 到 develop，并完成最终验收和 commit。
+description: 规划和执行本地仓库中的多项目任务编排。Use when the user asks to 拆分复杂开发任务、维护 develop/.workflow/<task-id>/ 任务记录、使用 detached worktree 隔离项目实现、分派 subagent 实现、将项目分支 merge 到 develop、发起总体验收 review，并完成最终 commit。
 ---
 
 # Project Workflow
@@ -18,7 +18,7 @@ description: 规划和执行本地仓库中的多项目任务编排。Use when t
 ## 角色
 
 - main agent：拆分任务、维护根记录、准备 worktree、分派 subagent、merge 项目分支到 `develop`、最终验收和 commit。
-- implementation subagent：只在指定 `project-worktree` 内实现、自测、更新项目任务记录，并在自测通过后提交项目分支 commit。
+- implementation subagent：只在指定 `project-worktree` 内实现、自测、更新项目任务记录，并提交项目分支 commit。
 
 ## 参考文件
 
