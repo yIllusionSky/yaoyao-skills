@@ -16,6 +16,8 @@
 
 如使用 `project-docs` 技能，只需更新 `<project-path>/README.md`。
 
+无需修改或记录 changelog。
+
 ## 工作流程
 
 1. 读取 main agent 下发的项目 `task.md`。

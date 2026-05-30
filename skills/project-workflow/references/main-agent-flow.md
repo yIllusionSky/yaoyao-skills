@@ -74,7 +74,11 @@ git -C develop merge workflow/<task-id>/<project-worktree>
 
 如有冲突，在本次 merge 中解决。
 
-3. 所有项目任务分支都 merge 到 `develop` 后，进入总体验收。
+3. 所有项目任务分支都 merge 到 `develop` 后，先在 `develop` 中完成根级集成处理，再进入总体验收。根级集成处理包括但不限于：
+   - 根 `Cargo.toml`、workspace members、package 配置等根配置更新。
+   - 根 README、根架构文档、跨项目功能或运维文档更新；如果本次变更影响项目入口、目录结构、子项目职责、架构边界、功能行为、运行方式或配置，使用 `project-docs` 技能检查并更新长期文档。
+   - 跨项目引用、构建入口、测试入口和整体命令检查。
+4. 将根级集成处理结果记录到 `develop/.workflow/<task-id>/log.md`。
 
 ### 阶段 4：总体验收
 
