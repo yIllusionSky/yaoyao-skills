@@ -38,5 +38,5 @@ git switch workflow/<task-id>/<project-worktree>
 5. 在自己的 `project-worktree` 中完成任务。
 6. 运行必要自测，先根据结果更新 `.workflow/<task-id>/<project-worktree>/log.md` 和 `task.md`。
 7. `log.md` 和 `task.md` 更新完成后，再提交 commit；无论自测通过或失败都要提交，commit message 写具体变更语义。
-8. 自测失败时，根据失败信息或总体验收 review 反馈回到第 5 步继续修改。
-9. 自测通过时，返回执行结果、commit hash 和测试结果。
+8. 若自测失败，根据反馈回到第 5 步继续修改。
+9. 返回执行结果、commit hash 和测试结果。

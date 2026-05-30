@@ -84,4 +84,5 @@ Status: <pending|changes requested|passed>
 
 - 新日志写在 `Log` 下最上方。
 - 可按需增加 `Notes`。
+- `completed` 表示对应任务已完成。
 - `blocked` 只在用户明确表示暂不实现或不需要该功能时使用，不由 agent 因执行失败自行设置。
