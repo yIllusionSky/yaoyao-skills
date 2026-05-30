@@ -23,7 +23,7 @@ git -C main worktree add ../develop develop
 1. 若不存在工作区，参考“工作区初始化”。
 2. 确定本次任务使用的 `<task-id>`。
 3. 根据用户需求或总体验收 review 反馈，在 `develop/.workflow/<task-id>/` 创建或更新根 `task.md` 和 `log.md`。
-4. 分析是否需要额外创建独立项目，例如前端、后端、`crates/<name>`、`packages/<name>`。
+4. 分析是否需要额外创建独立项目。项目指 monorepo 中可独立实现、测试或委派的子目录，例如 `apps/<name>`、`crates/<name>`、`packages/<name>`。
 5. 需要新增独立项目时，先在 `develop` 中初始化项目结构。
 6. 为每个需要独立实现的项目创建或更新 `develop/.workflow/<task-id>/<project-worktree>/task.md` 和 `log.md`。
 
