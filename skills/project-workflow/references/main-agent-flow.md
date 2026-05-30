@@ -81,5 +81,5 @@ git -C develop merge workflow/<task-id>/<project-worktree>
 1. 在 `develop` 中处理文档、根配置和跨项目检查。
 2. 创建 review subagent，审查对象必须是 `develop` worktree 当前状态，包括已 merge 的项目改动、根配置、文档和跨项目集成结果。
 3. 根据 review 结果更新根 `log.md` 和相关 `task.md`。
-4. 在 `develop` 提交 commit。
+4. 使用 `git-workflow` 技能进行 commit。
 5. 验收失败时，回到“阶段 1：完成计划”第 3 步，再严格按本流程继续。

@@ -1,11 +1,11 @@
 ---
 name: project-workflow
-description: 规划和执行本地仓库中的多项目任务编排。Use when the user asks to 拆分复杂开发任务、维护 develop/.workflow/<task-id>/ 任务记录、使用 detached worktree 隔离项目实现、分派 subagent 实现、将项目分支 merge 到 develop、发起总体验收 review，并完成最终 commit。
+description: 本地 monorepo 多项目任务编排技能。仅在用户明确要求使用 project-workflow 时使用。
 ---
 
 # Project Workflow
 
-用于规划和执行本地项目任务编排。除固定技术词、命令、文件名、workspace、subagent 外，使用中文。
+用于规划和执行本地 monorepo 多项目任务编排。除固定技术词、命令、文件名、workspace、subagent 外，使用中文。
 
 ## 触发后动作
 

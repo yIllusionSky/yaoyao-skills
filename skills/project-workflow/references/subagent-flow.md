@@ -45,6 +45,6 @@ git switch workflow/<task-id>/<project-worktree>
 
 5. 在自己的 `project-worktree` 中，只修改 `project-path` 和对应 workflow 记录。
 6. 运行必要自测，先根据结果更新 `.workflow/<task-id>/<project-worktree>/log.md` 和 `task.md`。
-7. `log.md` 和 `task.md` 更新完成后，再提交 commit；无论自测通过或失败都要提交，commit message 写具体变更语义。
+7. 使用 `git-workflow` 技能进行 commit。
 8. 若自测失败，根据反馈回到第 5 步继续修改。
-9. 返回执行结果、commit hash 和测试结果。
+9. 返回执行结果和测试结果。
