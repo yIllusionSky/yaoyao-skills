@@ -19,3 +19,5 @@ description: 本地 monorepo 多项目任务编排技能。仅在用户明确要
 
 - main agent：拆分任务、维护根记录、准备 worktree、分派 subagent、merge 项目分支到 `develop`、最终验收和 commit。
 - implementation subagent：只在指定 `project-worktree` 内实现、自测、更新项目任务记录，并提交项目分支 commit。
+
+本 skill 中任何 commit 都必须使用 `git-workflow` 技能。

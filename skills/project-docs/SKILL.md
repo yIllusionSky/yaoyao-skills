@@ -1,6 +1,6 @@
 ---
 name: project-docs
-description: 项目文档规范技能。用于创建、审查或维护长期项目文档，包括根 README、子项目 README、根目录 ARCHITECTURE.md、docs/features.md 和 docs/operations.md；适用于项目说明、功能说明、架构说明、运行维护说明和多子项目文档整理。
+description: 项目文档规范技能。用于创建、审查或维护长期项目文档，包括 monorepo 根 README、子项目 README、根目录 ARCHITECTURE.md、docs/features.md 和 docs/operations.md；适用于项目说明、功能说明、架构说明、运行维护说明和 monorepo 多子项目文档整理。
 ---
 
 # Project Docs
@@ -26,7 +26,7 @@ docs/
 - `ARCHITECTURE.md`：根目录架构文档；项目存在多模块、多 crate、多服务、复杂流程或重要依赖边界时维护。
 - `docs/features.md`：长期功能、业务规则和用户可见能力。
 - `docs/operations.md`：配置、部署、运行、日志、排障和维护信息。
-- `<子项目>/README.md`：每个独立子项目、crate、package、service、app 都要有自己的 README。
+- `<子项目>/README.md`：monorepo 中每个独立子项目、crate、package、service、app 都要有自己的 README。
 
 不要创建 API 文档、临时设计文档、issue 本地副本或 ADR。不要把所有文档强制放进 `docs/`。
 
