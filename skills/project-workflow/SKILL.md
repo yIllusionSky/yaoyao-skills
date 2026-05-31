@@ -13,7 +13,6 @@ description: 本地 monorepo 多项目任务编排技能。仅在用户明确要
 2. 必须读取 [task format](./references/task-format.md)。
 3. main agent 必须读取 [main agent flow](./references/main-agent-flow.md)，并严格按 main agent flow 执行。
 4. implementation subagent 必须读取 [subagent flow](./references/subagent-flow.md)，并严格按 subagent flow 执行。
-5. 如果当前环境不能启动 subagent，则由 main agent 按同一协议顺序执行，并在对应 `log.md` 说明。
 
 ## 角色
 
