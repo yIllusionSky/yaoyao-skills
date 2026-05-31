@@ -4,7 +4,7 @@
 
 ## Main Agent 下发要求
 
-必须知道审查对象是 `develop/`、`<task-id>`、根 `task.md` 路径和根 `log.md` 路径。读取 `workspace-layout` 和 `task-format`，并按 code review 方式输出结果。
+必须知道审查对象是 `develop/`、`<task-id>`、根 `task.md` 路径和根 `log.md` 路径。读取 `workspace-layout`、`task-format` 和 `commit`，并按 code review 方式输出结果。
 
 审查范围包括：
 

@@ -1,6 +1,6 @@
 # Implementation Subagent Flow
 
-本参考只适用于 implementation subagent。implementation subagent 必须先读取 `workspace-layout.md` 和 `task-format.md`，只能在 main agent 指定的 `project-worktree`、`project-path`、`workflow/<task-id>/<project-worktree>` 和任务范围内工作。
+本参考只适用于 implementation subagent。implementation subagent 必须先读取 `workspace-layout.md`、`task-format.md` 和 `commit.md`，只能在 main agent 指定的 `project-worktree`、`project-path`、`workflow/<task-id>/<project-worktree>` 和任务范围内工作。
 
 ## Main Agent 下发要求
 
@@ -26,10 +26,6 @@ git rev-parse --show-toplevel
 - `<project-path>/`
 - `.workflow/<task-id>/<project-worktree>/task.md`
 - `.workflow/<task-id>/<project-worktree>/log.md`
-
-如使用 `project-docs` 技能，只需更新 `<project-path>/README.md`。
-
-无需修改或记录 changelog。
 
 ## 工作流程
 
@@ -61,7 +57,7 @@ git switch -c workflow/<task-id>/<project-worktree>
 git switch workflow/<task-id>/<project-worktree>
 ```
 
-6. 在自己的 `project-worktree` 中，只修改 `<project-path>` 和对应 workflow 记录；不得在 workspace 根创建或修改 `apps/`、`packages/`、`crates/` 等 `<project-path>` 父目录。
+6. 在自己的 `project-worktree` 中，只修改 `<project-path>` 和对应 workflow 记录；实现完成后，如本次变更影响当前子项目入口、职责、功能行为、运行方式或配置，使用 `project-docs` 技能更新当前子项目文档 `<project-path>/README.md`；不得在 workspace 根创建或修改 `apps/`、`packages/`、`crates/` 等 `<project-path>` 父目录。
 7. 运行必要自测，先根据结果更新 `.workflow/<task-id>/<project-worktree>/log.md` 和 `task.md`。
 8. 提交 commit。
 9. 若自测失败，根据反馈回到第 6 步继续修改。
