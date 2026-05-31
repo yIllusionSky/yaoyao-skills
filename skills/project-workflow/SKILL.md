@@ -9,14 +9,16 @@ description: 本地 monorepo 多项目任务编排技能。仅在用户明确要
 
 ## 触发后动作
 
-1. 判断当前角色：main agent 或 implementation subagent。
-2. 必须读取 [task format](./references/task-format.md)。
+1. 判断当前角色：main agent、implementation subagent 或 review subagent。
+2. 必须读取 [workspace layout](./references/workspace-layout.md) 和 [task format](./references/task-format.md)。
 3. main agent 必须读取 [main agent flow](./references/main-agent-flow.md)，并严格按 main agent flow 执行。
-4. implementation subagent 必须读取 [subagent flow](./references/subagent-flow.md)，并严格按 subagent flow 执行。
+4. implementation subagent 必须读取 [implementation subagent flow](./references/implementation-subagent-flow.md)，并严格按 implementation subagent flow 执行。
+5. review subagent 必须读取 [review subagent flow](./references/review-subagent-flow.md)，并严格按 review subagent flow 执行。
 
 ## 角色
 
-- main agent：拆分任务、维护根记录、准备 worktree、分派 subagent、merge 项目分支到 `develop`、最终验收和 commit。
+- main agent：拆分任务、维护根记录、准备 worktree、分派 subagent、merge 项目分支到 `develop/` 的 `<task-id>` 分支、最终验收和 commit。
 - implementation subagent：只在指定 `project-worktree` 内实现、自测、更新项目任务记录，并提交项目分支 commit。
+- review subagent：只审查 `develop/` 当前 `<task-id>` 分支状态，输出 review findings，不直接修改文件。
 
 本 skill 中任何 commit 都必须使用 `git-workflow` 技能。
