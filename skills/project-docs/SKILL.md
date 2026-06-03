@@ -18,6 +18,8 @@ README.md
 ARCHITECTURE.md
 docs/
   features.md
+  features/
+    <功能域>.md
   operations.md
 <子项目>/README.md
 ```
@@ -25,10 +27,9 @@ docs/
 - `README.md`：根目录必须有，作为项目入口。
 - `ARCHITECTURE.md`：根目录架构文档；项目存在多模块、多 crate、多服务、复杂流程或重要依赖边界时维护。
 - `docs/features.md`：长期功能、业务规则和用户可见能力。
+- `docs/features/<功能域>.md`：当单个 `features.md` 不足以清晰描述复杂功能域时，按功能域拆分的长期功能文档。
 - `docs/operations.md`：配置、部署、运行、日志、排障和维护信息。
 - `<子项目>/README.md`：monorepo 中每个独立子项目、crate、package、service、app 都要有自己的 README。
-
-不要创建 API 文档、临时设计文档、issue 本地副本或 ADR。不要把所有文档强制放进 `docs/`。
 
 ## README
 
@@ -63,6 +64,12 @@ docs/
 ## 功能文档
 
 `docs/features.md` 只写已经存在或稳定承诺的长期功能，包括入口、行为、规则、关系和明确不支持的能力。
+
+默认只维护 `docs/features.md`。当功能长期稳定且内容明显过长，或某个功能域需要描述大量规则、状态流转、权限矩阵、配置组合、边界条件、用户可见关系时，可以创建 `docs/features/<功能域>.md`。
+
+拆分后，`docs/features.md` 继续作为功能总览和索引，保留全局规则、跨功能关系和指向功能域文档的链接；功能域文档只写该功能域自身的长期行为和规则。
+
+不要为了临时方案、roadmap、issue 分析、一次性设计、API 参数或内部实现细节创建功能域文档。
 
 ## 运行维护文档
 
