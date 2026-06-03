@@ -23,8 +23,6 @@ description: commit、PR、issue、tag、branch 工作流规范技能，生成�
 
 - 新开功能时从 `main` 创建工作分支，并通过 PR 合并回 `main`。
 - PR 目标分支默认是 `main`。
-- PR 合并到 `main` 时只做 CI 检查，不发布、不打包 release。
-- 提交或合并 PR 前，确认 CI workflow 已配置并通过。
 
 ## Tag
 
