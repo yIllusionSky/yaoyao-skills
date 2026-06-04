@@ -1,0 +1,4 @@
+interface:
+  display_name: "Team Project Workflow"
+  short_description: "团队任务、develop、worktree、review 和 merge 闭环"
+  default_prompt: "使用 $team-project-workflow 规划或执行团队本地项目任务编排流程。"
