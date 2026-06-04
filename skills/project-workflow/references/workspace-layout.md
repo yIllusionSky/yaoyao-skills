@@ -21,7 +21,7 @@ workspace 根目录禁止直接创建 monorepo 项目路径或其一级父目录
 
 ## 路径含义
 
-- `<project-path>` 永远是 worktree 内的相对路径，例如 `apps/web`、`packages/ui`。
+- `<project-path>` 永远是 worktree 内的相对路径，例如 `apps/web`、`services/api`。
 - main agent 操作项目结构时，`<project-path>` 对应 `develop/<project-path>`。
 - implementation subagent 操作项目代码时，`<project-path>` 对应 `<project-worktree>/<project-path>`。
 - `<project-worktree>` 永远是 workspace 根下的 worktree 目录名，由 `<project-path>` 去掉结尾 `/`，把 `/` 替换为 `-` 得到；例如 `apps/web` -> `apps-web`。
@@ -33,17 +33,20 @@ workspace/
 ├── main/
 ├── develop/
 │   ├── .workflow/
+│   │   ├── .projects
 │   │   └── <task-id>/
 │   ├── apps/
 │   │   └── web/
+│   ├── services/
+│   │   └── api/
 │   └── packages/
-│       └── ui/
+│       └── dto/
 ├── apps-web/
 │   └── apps/
 │       └── web/
-└── packages-ui/
-    └── packages/
-        └── ui/
+└── services-api/
+    └── services/
+        └── api/
 ```
 
 `apps/` 和 `packages/` 只能出现在某个 worktree 内，不能作为 workspace 根目录的直接子目录。

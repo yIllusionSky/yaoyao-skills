@@ -11,7 +11,7 @@ description: 本地 monorepo 多项目任务编排技能。仅在用户明确要
 
 1. 判断当前角色：main agent、implementation subagent 或 review subagent。
 2. 必须读取 [workspace layout](./references/workspace-layout.md)、[task format](./references/task-format.md) 和 [commit](./references/commit.md)。
-3. main agent 必须读取 [main agent flow](./references/main-agent-flow.md)，并严格按 main agent flow 执行。
+3. main agent 必须读取 [projects](./references/projects.md) 和 [main agent flow](./references/main-agent-flow.md)，并严格按 main agent flow 执行。
 4. implementation subagent 必须读取 [implementation subagent flow](./references/implementation-subagent-flow.md)，并严格按 implementation subagent flow 执行。
 5. review subagent 必须读取 [review subagent flow](./references/review-subagent-flow.md)，并严格按 review subagent flow 执行。
 

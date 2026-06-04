@@ -12,6 +12,7 @@
 - 根配置、workspace 配置和跨项目集成。
 - 根 README、架构文档、项目 README、功能或运维文档。
 - `.workflow/<task-id>/` 下的根记录和项目记录。
+- 项目记录中的 `Allowed Paths` 是否覆盖实际改动，是否存在未授权路径修改。
 - 已记录的测试结果和遗漏的必要测试。
 - workspace 根目录是否只包含 `main/`、`develop/` 和 `<project-worktree>/`，是否错误出现 `apps/`、`packages/`、`crates/` 等 monorepo 项目路径父目录。
 

@@ -1,10 +1,10 @@
 # Implementation Subagent Flow
 
-本参考只适用于 implementation subagent。implementation subagent 必须先读取 `workspace-layout.md`、`task-format.md` 和 `commit.md`，只能在 main agent 指定的 `project-worktree`、`project-path`、`workflow/<task-id>/<project-worktree>` 和任务范围内工作。
+本参考只适用于 implementation subagent。implementation subagent 必须先读取 `workspace-layout.md`、`task-format.md` 和 `commit.md`，只能在 main agent 指定的 `project-worktree`、`project-path`、`Allowed Paths`、`workflow/<task-id>/<project-worktree>` 和任务范围内工作。
 
 ## Main Agent 下发要求
 
-必须知道自己负责的 `project-worktree`、`project-path`、`<task-id>`、`workflow/<task-id>/<project-worktree>`、项目 `task.md` 路径和项目 `log.md` 路径。读取该 worktree 下的 `.skills` 加载所需技能。
+必须知道自己负责的 `project-worktree`、`project-path`、`Allowed Paths`、`<task-id>`、`workflow/<task-id>/<project-worktree>`、项目 `task.md` 路径和项目 `log.md` 路径。读取该 worktree 下的 `.skills` 加载所需技能。
 
 ## 工作目录
 
@@ -23,9 +23,11 @@ git rev-parse --show-toplevel
 
 只能修改：
 
-- `<project-path>/`
+- 项目 `task.md` 中 `Allowed Paths` 列出的路径；其中必须包含 `<project-path>/`
 - `.workflow/<task-id>/<project-worktree>/task.md`
 - `.workflow/<task-id>/<project-worktree>/log.md`
+
+未列入 `Allowed Paths` 的 package/crate/module 不能自行修改。发现任务需要修改未授权路径时，停止实现并返回 main agent 更新任务授权；不得自行创建额外 project worktree。
 
 ## 工作流程
 
@@ -57,7 +59,7 @@ git switch -c workflow/<task-id>/<project-worktree>
 git switch workflow/<task-id>/<project-worktree>
 ```
 
-6. 在自己的 `project-worktree` 中，只修改 `<project-path>` 和对应 workflow 记录；实现完成后，如本次变更影响当前子项目入口、职责、功能行为、运行方式或配置，使用 `project-docs` 技能更新当前子项目文档 `<project-path>/README.md`；不得在 workspace 根创建或修改 `apps/`、`packages/`、`crates/` 等 `<project-path>` 父目录。
+6. 在自己的 `project-worktree` 中，只修改 `Allowed Paths` 和对应 workflow 记录；实现完成后，如本次变更影响当前子项目入口、职责、功能行为、运行方式或配置，使用 `project-docs` 技能更新当前子项目文档 `<project-path>/README.md`；不得在 workspace 根创建或修改 `apps/`、`packages/`、`crates/` 等 `<project-path>` 父目录。
 7. 运行必要自测，先根据结果更新 `.workflow/<task-id>/<project-worktree>/log.md` 和 `task.md`。
 8. 提交 commit。
 9. 若自测失败，根据反馈回到第 6 步继续修改。

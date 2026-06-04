@@ -5,6 +5,7 @@
 - `<task-id>`：任务包标识，小写字母、数字和 `-`；已存在时追加 `-2`、`-3`。
 - `<project-path>`：monorepo 内真实项目路径，例如 `apps/backend`。
 - `<project-worktree>`：由 `<project-path>` 去掉结尾 `/`，把 `/` 替换为 `-` 得到；例如 `apps/backend` -> `apps-backend`
+- `Allowed Paths`：implementation subagent 可修改的路径集合；必须包含 `<project-path>`，可以额外包含本任务明确授权的共享 package/crate/module。
 
 ## Task 模板
 
@@ -20,6 +21,10 @@ Status: <in-progress|blocked|completed>
 ## Key Changes
 
 -
+
+## Allowed Paths
+
+- `<project-path>`
 
 ## Acceptance Criteria
 

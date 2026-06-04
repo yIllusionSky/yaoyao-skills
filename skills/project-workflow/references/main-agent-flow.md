@@ -1,6 +1,6 @@
 # Main Agent Flow
 
-本参考定义任务编排协议，包括任务记录、项目拆分、worktree 编排、subagent 启动、主集成和总体验收。执行前必须先读取 `workspace-layout.md`、`task-format.md` 和 `commit.md`。
+本参考定义任务编排协议，包括任务记录、项目拆分、worktree 编排、subagent 启动、主集成和总体验收。执行前必须先读取 `workspace-layout.md`、`task-format.md`、`projects.md` 和 `commit.md`。
 
 ## 工作区初始化
 
@@ -11,6 +11,7 @@ workspace/
 ├── main/
 ├── develop/
 │   ├── .workflow/
+│   │   ├── .projects
 │   │   └── <task-id>/
 │   │       ├── task.md
 │   │       ├── log.md
@@ -58,17 +59,18 @@ git -C develop switch -c <task-id>
 git -C develop switch <task-id>
 ```
 
-4. 根据用户需求或总体验收 review 反馈，在 `develop/.workflow/<task-id>/` 创建或更新根 `task.md` 和 `log.md`。
-5. 分析需要独立实现的项目。项目指 monorepo 中可独立实现、测试或委派的子目录，例如 `apps/<name>`、`crates/<name>`、`packages/<name>`。
-6. 需要新增独立项目时，只能在 `develop/<project-path>` 初始化委派所需的最小项目结构，例如目录、manifest、占位 README 和 workflow 记录；不得在 workspace 根创建 `apps/`、`packages/`、`crates/` 等 `<project-path>` 父目录，不得实现业务逻辑、功能代码或测试细节。
-7. 每个需要独立实现的项目必须确定 `project-path` 和 `project-worktree`；`project-path` 是 monorepo 内真实项目路径，`project-worktree` 是外层 worktree 目录名。
-8. 为每个需要独立实现的项目创建或更新 `develop/.workflow/<task-id>/<project-worktree>/task.md` 和 `log.md`。
-9. 计划和项目任务记录完成前，不得进入项目实现。
-10. 阶段 1 产生的 workflow 记录和最小项目结构必须在 `<task-id>` 分支形成提交，确保后续项目 worktree 可以读取任务文件。
+4. 读取 `.workflow/.projects` 得到本次需要独立 worktree/subagent 的 `<project-path>` 列表；未列入该文件的 package/crate/module 不创建独立 project worktree，也不单独分派 implementation subagent。需要修改未列入目录时，通过相关项目任务的 `Allowed Paths` 授权。
+5. 根据用户需求或总体验收 review 反馈，在 `develop/.workflow/<task-id>/` 创建或更新根 `task.md` 和 `log.md`。
+6. 需要新增 `.workflow/.projects` 中的独立项目时，main agent 只能在 `develop/<project-path>` 创建委派所需的最小项目骨架，例如项目目录、manifest 和占位 README；对应 workflow 记录仍写入 `develop/.workflow/<task-id>/`。不得在 workspace 根目录直接创建 `apps/`、`packages/`、`crates/` 等 monorepo 目录，也不得在阶段 1 实现业务逻辑、功能代码或测试细节。
+7. 每个需要独立实现的项目必须确定 `project-path`、`project-worktree` 和 `Allowed Paths`；`project-path` 是 `.workflow/.projects` 中的真实项目路径，`project-worktree` 是外层 worktree 目录名，`Allowed Paths` 是该 subagent 除 workflow 记录外可修改的路径集合。
+8. 为每个需要独立实现的项目创建或更新 `develop/.workflow/<task-id>/<project-worktree>/task.md` 和 `log.md`；项目 `task.md` 必须写明 `project-path` 和 `Allowed Paths`。
+9. 同一个共享包如需被多个 subagent 修改，必须在各自任务中说明修改边界，避免重复修改同一文件或同一接口。
+10. 计划、拆分文件和项目任务记录完成前，不得进入项目实现。
+11. 阶段 1 产生的 workflow 记录、拆分文件和最小项目结构必须在 `<task-id>` 分支形成提交，确保后续项目 worktree 可以读取任务文件。
 
 ### 阶段 2：准备项目 worktree
 
-1. 检查每个需要独立实现的项目是否存在对应 `<project-worktree>/`。
+1. 检查 `.workflow/.projects` 中每个需要独立实现的项目是否存在对应 `<project-worktree>/`。
 2. 若不存在，则创建该项目 worktree，并写入 `<project-worktree>/.skills`：
 
 ```bash
@@ -80,9 +82,10 @@ git -C develop worktree add --detach ../<project-worktree> <task-id>
 
 ### 阶段 3：执行和集成
 
-1. 创建阶段：连续为所有需要独立实现的项目创建 implementation subagent；所有 `spawn_agent` 调用完成前，禁止 `wait_agent`，禁止 main agent 修改任何 `<project-path>/`。创建时必须告诉对方“你是 implementation subagent”，必须使用 `project-workflow`，读取 `workspace-layout`、`task-format`、`commit` 和 `implementation-subagent-flow`，并告知：
+1. 创建阶段：连续为 `.workflow/.projects` 中所有需要独立实现的项目创建 implementation subagent；所有 `spawn_agent` 调用完成前，禁止 `wait_agent`，禁止 main agent 修改任何项目任务授权路径下的文件。创建时必须告诉对方“你是 implementation subagent”，必须使用 `project-workflow`，读取 `workspace-layout`、`task-format`、`commit` 和 `implementation-subagent-flow`，并告知：
    - `project-worktree`
    - `project-path`
+   - `Allowed Paths`
    - `workflow/<task-id>/<project-worktree>`
    - `.workflow/<task-id>/<project-worktree>/task.md`
    - `.workflow/<task-id>/<project-worktree>/log.md`
@@ -94,7 +97,7 @@ git -C develop merge workflow/<task-id>/<project-worktree>
 
 如有冲突，在本次 merge 中解决。
 
-3. main agent 只允许在 merge 冲突解决和根级集成阶段修改 `<project-path>/`；不得替代 implementation subagent 直接实现项目任务。
+3. main agent 只允许在 merge 冲突解决和根级集成阶段修改项目任务涉及路径、根配置、长期文档和 workflow 记录；不得替代 implementation subagent 直接实现项目任务。
 4. 所有项目任务分支都 merge 到 `develop/` 的 `<task-id>` 分支后，先在 `develop/` 中完成根级集成处理，再进入总体验收。根级集成处理包括但不限于：
    - 根 `Cargo.toml`、workspace members、package 配置等根配置更新。
    - 检查本次用户或工程上有意义的变更是否已记录到 changelog，使用 `changelog` skill；未记录则补充记录。
