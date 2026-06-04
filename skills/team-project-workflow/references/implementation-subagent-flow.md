@@ -60,7 +60,7 @@ git switch workflow/<task-id>/<project-worktree>
 ```
 
 6. 在自己的 `project-worktree` 中，只修改 `Allowed Paths` 和对应 workflow 记录；实现完成后，如本次变更影响当前子项目入口、职责、功能行为、运行方式或配置，使用 `project-docs` 技能更新当前子项目文档 `<project-path>/README.md`；不得在 workspace 根创建或修改 `apps/`、`packages/`、`crates/` 等 `<project-path>` 父目录。
-7. 运行必要自测，先根据结果更新 `.workflow/<task-id>/<project-worktree>/log.md` 和 `task.md`。
+7. 运行必要自测，根据结果更新 `.workflow/<task-id>/<project-worktree>/log.md` 和 `task.md`。
 8. 提交 commit。
 9. 若自测失败，根据反馈回到第 6 步继续修改。
 10. 返回执行结果和测试结果。

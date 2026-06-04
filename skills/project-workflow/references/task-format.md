@@ -69,6 +69,7 @@ Status: <pending|changes requested|passed>
 
 ## 规则
 
+- 日志用于记录执行、测试、集成或 review 后的结果。
 - 新日志写在 `Log` 下最上方。
 - 可按需增加 `Notes`。
 - `Key Changes` 写本任务需要完成或已经完成的关键改动，不写通用执行步骤。
