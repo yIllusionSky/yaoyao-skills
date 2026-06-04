@@ -21,4 +21,6 @@ services/api
 
 ## 规则
 
-如果 `.workflow/.projects` 不存在或内容为空，先询问用户需要拆分哪些项目，再将用户指定的 `<project-path>` 按一行一个写入该文件。
+如果 `.workflow/.projects` 不存在或内容为空，先询问用户哪些项目目录允许单独创建 worktree/subagent，再将对应 `<project-path>` 按一行一个写入该文件。
+
+新增允许单独拆分的项目时，只在 `develop/<project-path>` 创建委派所需的最小项目骨架，例如项目目录、manifest 和占位 README；不得在 workspace 根目录直接创建 `apps/`、`packages/`、`crates/` 等 monorepo 目录，也不得实现业务逻辑、功能代码或测试细节。

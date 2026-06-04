@@ -59,18 +59,17 @@ git -C develop switch -c <task-id>
 git -C develop switch <task-id>
 ```
 
-4. 读取 `.workflow/.projects` 得到本次需要独立 worktree/subagent 的 `<project-path>` 列表；未列入该文件的 package/crate/module 不创建独立 project worktree，也不单独分派 implementation subagent。需要修改未列入目录时，通过相关项目任务的 `Allowed Paths` 授权。
+4. 读取 `.workflow/.projects` 得到允许单独创建 worktree/subagent 的 `<project-path>` 列表；本次任务选中的项目必须来自该列表。未列入该文件的 package/crate/module 不创建独立 project worktree，也不单独分派 implementation subagent。需要修改未列入目录时，通过相关项目任务的 `Allowed Paths` 授权。
 5. 根据用户需求或总体验收 review 反馈，在 `develop/.workflow/<task-id>/` 创建或更新根 `task.md` 和 `log.md`。
-6. 需要新增 `.workflow/.projects` 中的独立项目时，main agent 只能在 `develop/<project-path>` 创建委派所需的最小项目骨架，例如项目目录、manifest 和占位 README；对应 workflow 记录仍写入 `develop/.workflow/<task-id>/`。不得在 workspace 根目录直接创建 `apps/`、`packages/`、`crates/` 等 monorepo 目录，也不得在阶段 1 实现业务逻辑、功能代码或测试细节。
-7. 每个需要独立实现的项目必须确定 `project-path`、`project-worktree` 和 `Allowed Paths`；`project-path` 是 `.workflow/.projects` 中的真实项目路径，`project-worktree` 是外层 worktree 目录名，`Allowed Paths` 是该 subagent 除 workflow 记录外可修改的路径集合。
-8. 为每个需要独立实现的项目创建或更新 `develop/.workflow/<task-id>/<project-worktree>/task.md` 和 `log.md`；项目 `task.md` 必须写明 `project-path` 和 `Allowed Paths`。
-9. 同一个共享包如需被多个 subagent 修改，必须在各自任务中说明修改边界，避免重复修改同一文件或同一接口。
-10. 计划、拆分文件和项目任务记录完成前，不得进入项目实现。
-11. 阶段 1 产生的 workflow 记录、拆分文件和最小项目结构必须在 `<task-id>` 分支形成提交，确保后续项目 worktree 可以读取任务文件。
+6. 每个需要独立实现的项目必须确定 `project-path`、`project-worktree` 和 `Allowed Paths`；`project-path` 是本次任务选中的项目路径，`project-worktree` 是外层 worktree 目录名，`Allowed Paths` 是该 subagent 除 workflow 记录外可修改的路径集合。
+7. 为每个需要独立实现的项目创建或更新 `develop/.workflow/<task-id>/<project-worktree>/task.md` 和 `log.md`；项目 `task.md` 必须写明 `project-path` 和 `Allowed Paths`。
+8. 同一个共享包如需被多个 subagent 修改，必须在各自任务中说明修改边界，避免重复修改同一文件或同一接口。
+9. 计划、拆分文件和项目任务记录完成前，不得进入项目实现。
+10. 阶段 1 产生的 workflow 记录、拆分文件和最小项目结构必须在 `<task-id>` 分支形成提交，确保后续项目 worktree 可以读取任务文件。
 
 ### 阶段 2：准备项目 worktree
 
-1. 检查 `.workflow/.projects` 中每个需要独立实现的项目是否存在对应 `<project-worktree>/`。
+1. 检查本次任务选中的每个 `<project-path>` 是否存在对应 `<project-worktree>/`。
 2. 若不存在，则创建该项目 worktree，并写入 `<project-worktree>/.skills`：
 
 ```bash
@@ -82,7 +81,7 @@ git -C develop worktree add --detach ../<project-worktree> <task-id>
 
 ### 阶段 3：执行和集成
 
-1. 创建阶段：连续为 `.workflow/.projects` 中所有需要独立实现的项目创建 implementation subagent；所有 `spawn_agent` 调用完成前，禁止 `wait_agent`，禁止 main agent 修改任何项目任务授权路径下的文件。创建时必须告诉对方“你是 implementation subagent”，必须使用 `project-workflow`，读取 `workspace-layout`、`task-format`、`commit` 和 `implementation-subagent-flow`，并告知：
+1. 创建阶段：连续为本次任务选中的项目创建 implementation subagent；这些项目必须存在于 `.workflow/.projects`。所有 `spawn_agent` 调用完成前，禁止 `wait_agent`，禁止 main agent 修改任何项目任务授权路径下的文件。创建时必须告诉对方“你是 implementation subagent”，必须使用 `project-workflow`，读取 `workspace-layout`、`task-format`、`commit` 和 `implementation-subagent-flow`，并告知：
    - `project-worktree`
    - `project-path`
    - `Allowed Paths`
