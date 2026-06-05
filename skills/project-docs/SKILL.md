@@ -95,4 +95,3 @@ CLI 项目写 CLI 命令测试；web / backend 项目写 `curl` 测试。
 
 - 小修小改不强制更新文档。
 - 当项目入口、目录结构、子项目职责、功能行为、架构边界、运行方式、CLI 测试命令、HTTP 测试调用、手动测试步骤或配置发生变化时，更新对应文档。
-- 删除过期内容，避免 README、features、ARCHITECTURE、operations 重复维护同一信息。
