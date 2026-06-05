@@ -73,7 +73,7 @@ locales/
 
 ```json
 {
-  "PROBLEM_NOT_FOUND": "题目 {problemId} 不存在"
+  "PROBLEM_NOT_FOUND": "题目 {problem_id} 不存在"
 }
 ```
 
