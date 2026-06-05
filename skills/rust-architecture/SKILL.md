@@ -48,16 +48,34 @@ description: Rust 项目架构规范技能。用于设计、创建或调整 Rust
 
 - 每个 crate 都要有自己的错误管理，优先使用 `thiserror` 定义结构化错误。
 - `color-eyre` 只用于应用入口、CLI、server startup 和顶层错误报告，不作为 library crate 的公共错误类型。
-- HTTP adapter 需要把内部错误映射成统一响应格式：
+- HTTP adapter 按 RESTful 语义返回状态码：成功使用 `2xx`，例如 `200 OK`；失败使用非 `2xx`，其中 `4xx` 表示客户端输入、权限、资源不存在等可预期错误，`5xx` 表示服务端内部错误。
+- HTTP 错误响应 body 使用稳定的大写字符串错误码和必要上下文字段：
 
 ```json
 {
-  "code": "INVALID_ARGUMENT",
-  "data": null
+  "code": "PROBLEM_NOT_FOUND",
+  "problem_id": "123"
 }
 ```
 
-`code` 使用稳定的大写字符串错误码，前端通过 `code` 做展示文案和 i18n 映射；`data` 为业务数据或 `null`。内部错误不直接暴露给客户端，只映射为稳定错误码，并在服务端记录详细错误。
+`code` 使用 `SCREAMING_SNAKE_CASE`，作为 API 稳定错误码。前端或客户端用 `code` 直接查错误文案模板，不把内部错误直接暴露给客户端，并在服务端记录详细错误。
+- 错误文案 i18n 按语言拆文件，放在项目根目录的 `locales/`：
+
+```text
+locales/
+  zh-CN/
+    errors.json
+  en-US/
+    errors.json
+```
+
+`errors.json` 内直接使用 API 错误码作为 key：
+
+```json
+{
+  "PROBLEM_NOT_FOUND": "题目 {problemId} 不存在"
+}
+```
 
 ## 格式化与 CI
 
