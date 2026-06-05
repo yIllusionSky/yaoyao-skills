@@ -1,6 +1,6 @@
 ---
 name: project-docs
-description: 项目文档规范技能。用于创建、审查或维护长期项目文档，包括 monorepo 根 README、子项目 README、根目录 ARCHITECTURE.md、docs/features.md 和 docs/operations.md；适用于项目说明、功能说明、架构说明、运行维护说明和 monorepo 多子项目文档整理。
+description: 项目文档规范技能。用于创建、审查或维护长期项目文档，包括 monorepo 根 README、子项目 README、根目录 ARCHITECTURE.md、manual-tests.md、docs/features.md 和 docs/operations.md；适用于项目说明、功能说明、手动测试、架构说明、运行维护说明和 monorepo 多子项目文档整理。
 ---
 
 # Project Docs
@@ -16,20 +16,24 @@ description: 项目文档规范技能。用于创建、审查或维护长期项�
 ```text
 README.md
 ARCHITECTURE.md
+manual-tests.md
 docs/
   features.md
   features/
     <功能域>.md
   operations.md
 <子项目>/README.md
+<子项目>/manual-tests.md
 ```
 
 - `README.md`：根目录必须有，作为项目入口。
 - `ARCHITECTURE.md`：根目录架构文档；项目存在多模块、多 crate、多服务、复杂流程或重要依赖边界时维护。
+- `manual-tests.md`：根项目手动测试文档；记录可直接执行的功能测试命令、前置条件和预期结果。
 - `docs/features.md`：长期功能、业务规则和用户可见能力。
 - `docs/features/<功能域>.md`：当单个 `features.md` 不足以清晰描述复杂功能域时，按功能域拆分的长期功能文档。
 - `docs/operations.md`：配置、部署、运行、日志、排障和维护信息。
 - `<子项目>/README.md`：monorepo 中每个独立子项目、crate、package、service、app 都要有自己的 README。
+- `<子项目>/manual-tests.md`：可运行子项目的手动测试文档；CLI 写 CLI 命令测试，web / backend 写 `curl` 测试。
 
 ## README
 
@@ -41,7 +45,7 @@ docs/
 - 项目结构概览。
 - 指向实际存在的长期文档。
 
-根 README 只做入口摘要，不承载完整架构、功能规则或运维细节。
+根 README 只做入口摘要，不承载完整架构、功能规则、完整手动测试步骤或运维细节。
 
 ## 子项目 README
 
@@ -71,14 +75,24 @@ docs/
 
 不要为了临时方案、roadmap、issue 分析、一次性设计、API 参数或内部实现细节创建功能域文档。
 
+## 手动测试文档
+
+`manual-tests.md` 写可直接执行的手动测试，包括前置条件、测试命令、输入和预期结果。
+
+CLI 项目写 CLI 命令测试；web / backend 项目写 `curl` 测试。
+
+根项目存在多个可运行入口时，根 `manual-tests.md` 写全局前置条件和跨子项目测试入口；可运行子项目维护自己的 `manual-tests.md`。
+
+普通 library 或没有稳定可运行入口的项目不强制创建 `manual-tests.md`。
+
 ## 运行维护文档
 
-`docs/operations.md` 写长期运行和维护信息，包括环境变量、配置、本地启动、构建发布、部署、日志排障、迁移、备份和恢复。
+`docs/operations.md` 写长期运行维护信息，包括环境变量、配置、部署、日志排障、迁移、备份和恢复。
 
 普通 library 或不需要长期运行维护的项目不强制创建 `docs/operations.md`。
 
 ## 更新规则
 
 - 小修小改不强制更新文档。
-- 当项目入口、目录结构、子项目职责、功能行为、架构边界、运行方式或配置发生变化时，更新对应文档。
+- 当项目入口、目录结构、子项目职责、功能行为、架构边界、运行方式、CLI 测试命令、HTTP 测试调用、手动测试步骤或配置发生变化时，更新对应文档。
 - 删除过期内容，避免 README、features、ARCHITECTURE、operations 重复维护同一信息。
