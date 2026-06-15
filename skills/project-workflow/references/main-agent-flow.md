@@ -99,7 +99,6 @@ git -C develop merge workflow/<task-id>/<project-worktree>
 3. main agent 只允许在 merge 冲突解决和根级集成阶段修改项目任务涉及路径、根配置、长期文档和 workflow 记录；不得替代 implementation subagent 直接实现项目任务。
 4. 所有项目任务分支都 merge 到 `develop/` 的 `<task-id>` 分支后，先在 `develop/` 中完成根级集成处理，再进入总体验收。根级集成处理包括但不限于：
    - 根 `Cargo.toml`、workspace members、package 配置等根配置更新。
-   - 检查本次用户或工程上有意义的变更是否已记录到 changelog，使用 `changelog` skill；未记录则补充记录。
    - 如果本次变更影响项目入口、目录结构、子项目职责、架构边界、功能行为、运行方式、手动测试方式或配置，使用 `project-docs` skill 检查并更新长期文档。
    - 跨项目引用、构建入口、测试入口和整体命令检查。
 5. 将根级集成处理结果记录到 `develop/.workflow/<task-id>/log.md`。

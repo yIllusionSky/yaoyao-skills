@@ -9,9 +9,7 @@ description: commit、PR、issue、tag、branch 工作流规范技能，生成�
 
 - 不写提交人、协作者、工具来源或 AI 署名。
 - 除固定关键词外，使用中文。
-- 提交、创建 PR 或发布 tag 前，执行下列步骤：
-  1. 检查本次用户或工程上有意义的变更是否已记录到 changelog，使用 `changelog` skill；未记录则补充记录。
-  2. 如果本次变更影响项目入口、目录结构、子项目职责、架构边界、功能行为、运行方式、手动测试方式或配置，使用 `project-docs` skill 检查并更新长期文档。
+- 提交或创建 PR 前，如果本次变更影响项目入口、目录结构、子项目职责、架构边界、功能行为、运行方式、手动测试方式或配置，使用 `project-docs` skill 检查并更新长期文档。
 
 ## Branch
 
@@ -28,7 +26,8 @@ description: commit、PR、issue、tag、branch 工作流规范技能，生成�
 
 - 发布 tag 使用 `vX.Y.Z`，例如 `v0.1.0`、`v1.2.3`。
 - 创建轻量 tag，不创建 annotated tag。
-- 发布 tag 前，先按 changelog 规则将 `[Unreleased]` 转为 `[X.Y.Z] - <YYYY-MM-DD HH:mm>`；changelog 版本号不带 `v`。
+- 发布 tag 前，使用 `team-changelog` skill 从上一个 semver tag 到当前 `HEAD` 的 commit 区间归纳发布说明，并更新 `CHANGELOG.md` 对应版本区块。
+- changelog 版本标题使用 `[X.Y.Z] - YYYY-MM-DD`，版本号不带 `v`。
 - tag push 后由 GitHub Actions release workflow 发布 release，并从 changelog 对应版本区块生成 release notes。
 
 需要格式示例或内容参考时，读取对应 reference：
