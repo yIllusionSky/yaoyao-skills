@@ -1,38 +1,47 @@
 ---
 name: git-workflow
-description: commit、PR、issue、tag、branch 工作流规范技能，生成相关内容时使用
+description: 生成或审查 branch、commit、pull request、issue 和 tag 内容，并在提交、PR 与发布前执行对应检查。用于 Git 协作内容、分支命名、GitHub issue/PR 和 semver tag 工作流。
 ---
 
 # Git Workflow
 
-生成 commit、PR、issue、tag 内容和 branch 命名时使用。
-
 - 不写提交人、协作者、工具来源或 AI 署名。
-- 除固定关键词外，使用中文。
-- 提交或创建 PR 前，如果本次变更影响项目入口、目录结构、子项目职责、架构边界、功能行为、运行方式、手动测试方式或配置，使用 `project-docs` skill 检查并更新长期文档。
+- 除固定关键词、命令和代码符号外，使用中文。
+- 先读取仓库现有模板、贡献规范和目标分支，再生成或更新内容；不要用通用模板覆盖仓库规则。
+- 变更影响项目入口、目录结构、子项目职责、架构边界、功能行为、运行方式、手动测试方式或配置时，在提交或创建 PR 前使用 `project-docs` 检查长期文档。
 
 ## Branch
 
-- 分支命名使用 `<type>/<short-kebab-summary>`。
-- 如果分支包含多类改动，使用主要改动类型；难以归类时使用 `chore`。
-- 示例：`docs/update-pr-template`、`fix/remove-codex-prefix`、`feat/add-tag-template`。
+- 使用 `<type>/<short-kebab-summary>`。
+- 从仓库约定的基线分支创建；没有其他约定时使用 `main`。
+- 多类改动使用主要类型，难以归类时使用 `chore`。
+- 示例：`docs/update-pr-template`、`fix/remove-invalid-prefix`、`feat/add-tag-template`。
+
+## Commit
+
+需要生成或审查 commit 时读取 [commit](./references/commit.md)。
 
 ## Pull Request
 
-- 新开功能时从 `main` 创建工作分支，并通过 PR 合并回 `main`。
-- PR 目标分支默认是 `main`。
+- 默认目标分支为仓库约定的基线；没有其他约定时使用 `main`。
+- 创建 PR 前检查工作区状态、实际 diff、测试结果和需要同步的长期文档。
+- 项目安装 `changelog` 时，检查本次值得发布的最终变化是否已归入 `[Unreleased]`。
+- 项目安装 `team-changelog` 时，commit 和 PR 阶段不修改 changelog。
+- 需要格式时读取 [pull request](./references/pull_request.md)。
+
+## Issue
+
+- 创建或更新 issue 前读取仓库上下文和现有 issue；缺少关键信息时明确列为待确认项，不自行编造。
+- 只有确认仓库中存在对应 label 后才使用 label。
+- 更新 issue 时保留未要求修改的字段。
+- 需要格式时读取 [issue](./references/issue.md)。
 
 ## Tag
 
-- 发布 tag 使用 `vX.Y.Z`，例如 `v0.1.0`、`v1.2.3`。
-- 创建轻量 tag，不创建 annotated tag。
-- 发布 tag 前，使用 `team-changelog` skill 从上一个 semver tag 到当前 `HEAD` 的 commit 区间归纳发布说明，并更新 `CHANGELOG.md` 对应版本区块。
-- changelog 版本标题使用 `[X.Y.Z] - YYYY-MM-DD`，版本号不带 `v`。
-- tag push 后由 GitHub Actions release workflow 发布 release，并从 changelog 对应版本区块生成 release notes。
-
-需要格式示例或内容参考时，读取对应 reference：
-
-- [commit](./references/commit.md)
-- [pull request](./references/pull_request.md)
-- [issue](./references/issue.md)
-- [tag](./references/tag.md)
+- 只创建严格匹配 `vX.Y.Z` 的轻量 tag，不创建 annotated tag。
+- 项目安装 `changelog` 时，先使用它审计 `[Unreleased]` 并发布版本区块。
+- 项目安装 `team-changelog` 时，先使用它从上一个稳定 semver tag 到当前 `HEAD` 归纳版本区块。
+- 两者均未安装时，不自行修改 changelog；先报告缺少发布说明来源。
+- changelog 版本标题统一使用 `[X.Y.Z] - YYYY-MM-DD`。
+- tag push 后由 release workflow 从对应版本区块生成 release notes。
+- 需要命令参考时读取 [tag](./references/tag.md)。

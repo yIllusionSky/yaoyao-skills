@@ -4,7 +4,7 @@
 
 ## 目录层级
 
-workspace 根目录只允许出现：
+workspace 根目录必须是用户确认的专用编排目录，可以包含 `AGENTS.md`、隐藏配置等编排控制文件，以及：
 
 - `main/`：主基线 worktree。
 - `develop/`：集成 worktree 目录，基线分支是 `develop`；执行任务时当前分支是从 `develop` 创建的 `<task-id>`。
@@ -17,7 +17,7 @@ workspace 根目录禁止直接创建 monorepo 项目路径或其一级父目录
 - `crates/`
 - 任何由 `<project-path>` 拆出的顶层目录。
 
-如果 workspace 根目录出现上述禁止目录，必须先停止并报告布局违规，不得继续实现。
+如果 workspace 根目录出现上述禁止目录，或在 `main/` 不存在时已经包含无法确认用途的项目内容，必须停止并报告布局违规；不得自动创建嵌套 Git 仓库。
 
 ## 路径含义
 

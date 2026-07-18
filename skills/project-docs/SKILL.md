@@ -33,7 +33,7 @@ docs/
 - `docs/features/<功能域>.md`：当单个 `features.md` 不足以清晰描述复杂功能域时，按功能域拆分的长期功能文档。
 - `docs/operations.md`：配置、部署、运行、日志、排障和维护信息。
 - `<子项目>/README.md`：monorepo 中每个独立子项目、crate、package、service、app 都要有自己的 README。
-- `<子项目>/manual-tests.md`：可运行子项目的手动测试文档；CLI 写 CLI 命令测试，web / backend 写 `curl` 测试。
+- `<子项目>/manual-tests.md`：可运行子项目的手动测试文档；按入口类型写可执行或可复现的测试步骤。
 
 ## README
 
@@ -77,9 +77,13 @@ docs/
 
 ## 手动测试文档
 
-`manual-tests.md` 写可直接执行的手动测试，包括前置条件、测试命令、输入和预期结果。
+`manual-tests.md` 写可执行或可复现的手动测试，包括前置条件、输入、操作、预期结果和必要清理：
 
-CLI 项目写 CLI 命令测试；web / backend 项目写 `curl` 测试。
+- CLI：命令、参数、标准输出或错误输出和退出码。
+- HTTP backend：`curl` 请求、状态码和关键响应字段。
+- browser frontend：浏览器入口、操作步骤和可观察页面结果。
+- desktop app：启动方式、GUI 操作和状态变化。
+- library：最小示例代码、doctest 或公开 API 调用结果。
 
 根项目存在多个可运行入口时，根 `manual-tests.md` 写全局前置条件和跨子项目测试入口；可运行子项目维护自己的 `manual-tests.md`。
 
@@ -87,7 +91,7 @@ CLI 项目写 CLI 命令测试；web / backend 项目写 `curl` 测试。
 
 ## 运行维护文档
 
-`docs/operations.md` 写长期运行维护信息，包括环境变量、配置、部署、日志排障、迁移、备份和恢复。
+`docs/operations.md` 写长期运行维护信息，包括环境变量、配置、部署、日志排障、迁移、备份和恢复。只记录 secret 名称、用途和获取方式，不写真实 secret 值。
 
 普通 library 或不需要长期运行维护的项目不强制创建 `docs/operations.md`。
 
@@ -95,3 +99,4 @@ CLI 项目写 CLI 命令测试；web / backend 项目写 `curl` 测试。
 
 - 小修小改不强制更新文档。
 - 当项目入口、目录结构、子项目职责、功能行为、架构边界、运行方式、CLI 测试命令、HTTP 测试调用、手动测试步骤或配置发生变化时，更新对应文档。
+- 更新后核对文档中的相对链接、命令、文件路径、配置名称和实际入口；删除已经不存在的说明。

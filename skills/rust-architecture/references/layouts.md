@@ -25,8 +25,11 @@ src/
 ├── main.rs
 ├── cli.rs
 ├── commands/
+│   └── mod.rs
 ├── core/
+│   └── mod.rs
 ├── adapters/
+│   └── mod.rs
 └── error.rs
 ```
 
@@ -57,10 +60,15 @@ src/
 ```text
 src/
 ├── domain/
+│   └── mod.rs
 ├── application/
+│   └── mod.rs
 ├── ports/
+│   └── mod.rs
 ├── adapters/
+│   ├── mod.rs
 │   └── <http|cli|db|storage|external>/
+│       └── mod.rs
 ├── config.rs
 ├── error.rs
 └── main.rs
@@ -78,10 +86,15 @@ crates/
 ├── server/
 │   └── src/
 │       ├── domain/
+│       │   └── mod.rs
 │       ├── application/
+│       │   └── mod.rs
 │       ├── ports/
+│       │   └── mod.rs
 │       ├── adapters/
+│       │   ├── mod.rs
 │       │   └── <http|cli|db|storage|external>/
+│       │       └── mod.rs
 │       ├── config.rs
 │       ├── error.rs
 │       └── main.rs
@@ -115,8 +128,11 @@ src/
 ├── lib.rs
 ├── cli.rs
 ├── commands/
+│   └── mod.rs
 ├── core/
+│   └── mod.rs
 ├── adapters/
+│   └── mod.rs
 └── error.rs
 ```
 

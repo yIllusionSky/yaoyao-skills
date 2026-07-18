@@ -10,12 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - 添加根目录 `CHANGELOG.md`。
-- 添加 changelog 技能的单文件 `CHANGELOG.md` 维护规则，并明确 `[Unreleased]` 只描述下一次发布后的最终变化，已有同一发布事项应不改或更新原条目，首版 `[Unreleased]` 只能使用 `Added`，发布 tag 时将 `vX.Y.Z` 对应为不带 `v` 且带本地分钟时间的 changelog 版本区块，并通过两个正反示例说明按最终事项维护。
-- 添加 `github-actions` 技能，按 assets 和复制脚本维护通用 Rust CI、app / Docker / Tauri tag release workflow，提供约定 `server/` 与 `client/` 分离构建且 Dockerfile 位于各自服务目录的 Docker 项目模板，支持按 Docker 目标架构选择 Rust musl target，并补齐 SvelteKit SSR + TypeScript 客户端模板，同时完善 `git-workflow` 对 changelog 检查、PR 检查、tag 发布、release notes 来源和 reference 示例的规则。
-- 添加 `rust-architecture` 技能，规范 Rust CLI、library、后端服务和复杂应用的项目结构、四层架构边界、adapter 拆分、错误处理、crate 级格式化、clippy 检查和测试规则。
-- 添加 `project-docs` 技能，规范长期项目文档的创建和维护，包括根 README、子项目 README、根目录架构文档、功能说明、手动测试和运行维护文档。
-- 添加 `project-workflow` 和 `team-project-workflow` 技能，编排 workspace 布局、`.workflow/.projects` 显式项目拆分文件、`.workflow/<task-id>/` 本地任务记录、`develop/` 集成 worktree 目录、`<task-id>` 集成分支、项目 detached worktree、并行 implementation subagent 实现、项目分支逐个 merge、根级配置与长期文档集成、review subagent 总体验收闭环，并通过 references 定义 workspace 布局、任务格式、拆分文件、commit 规范、主 agent 流程、implementation subagent 流程、review subagent 流程和 worktree 规则，明确 implementation subagent 只能修改项目任务授权的 `Allowed Paths` 和 workflow 记录，且无需修改或记录 changelog；项目变更影响手动测试方式时，也需要检查并更新长期文档。
-
-## [<version>] - <YYYY-MM-DD HH:mm>
-
-...
+- 添加独立 `changelog` 技能，持续维护只描述最终变化的 `[Unreleased]`，在稳定 semver tag 前结合 commit 正文和 diff 审计条目，使用不带时间的 ISO 日期发布版本区块，并通过按需加载的示例说明同一发布事项的归并规则。
+- 添加 `github-actions` 技能，通过校验后一次性复制的脚本维护 Rust CI、app、Docker 和 Tauri tag release workflow；Docker assets 作为已有 server/client 项目的部署叠加层，支持 server-only 与 fullstack，固定 Action SHA，并完善 `git-workflow` 的中文 commit、PR、issue、tag 和两种 changelog 模式选择规则。
+- 添加 `rust-architecture` 技能，规范 Rust CLI、library、后端服务和复杂应用的四层边界、模块入口、按复杂度选择的错误处理、library public API、条件 REST 错误契约、本地 crate 级检查、workspace CI 和测试规则。
+- 添加 `project-docs` 技能，规范根 README、子项目 README、架构、功能、运维和按 CLI、HTTP、browser、desktop、library 入口区分的手动测试文档，并要求更新后核对链接、命令、路径和配置。
+- 添加互斥安装的 `project-workflow` 和 `team-project-workflow`，通过显式项目白名单、任务记录、detached project worktree、受限 `Allowed Paths`、按可用 slot 分批执行、项目分支集成和 review subagent 完成多项目闭环；非 team 版始终从 `main` 派生并交付任务分支，team 版验收后使用 merge commit 合并回真实 `develop`。

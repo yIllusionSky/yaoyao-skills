@@ -1,4 +1,5 @@
 update-version:
+    @echo "export SERVER_BIN=__SERVER_BIN__"
     @echo "export SERVER_IMAGE=$(cd server && cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].name')"
     @echo "export SERVER_TAG=$(cd server && cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')"
     @if [ -f client/package.json ]; then echo "export CLIENT_IMAGE=$(cd client && bun pm pkg get name 2>/dev/null | tr -d '\"')"; fi

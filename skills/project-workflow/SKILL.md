@@ -17,7 +17,7 @@ description: 本地 monorepo 多项目任务编排技能。仅在用户明确要
 
 ## 角色
 
-- main agent：拆分任务、维护根记录、准备 worktree、分派 subagent、merge 项目分支到 `develop/` 的 `<task-id>` 分支、最终验收和 commit。
+- main agent：拆分任务、维护根记录、准备 worktree、分批分派 subagent、merge 项目分支到 `develop/` 的 `<task-id>` 分支、最终验收并交付任务分支。
 - implementation subagent：只在指定 `project-worktree` 内实现、自测、更新项目任务记录，并提交项目分支 commit。
 - review subagent：只审查 `develop/` 当前 `<task-id>` 分支状态，输出 review findings，不直接修改文件。
 

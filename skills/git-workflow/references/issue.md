@@ -1,85 +1,46 @@
-## Examples
+# Issue
 
-### Example 1: Bug Report
+优先使用仓库已有 issue form 或模板。没有模板时按问题类型选择最小结构。
 
-**User**: "Create a bug issue - the login page crashes when using SSO"
+## Bug
 
-**Title**:
 ```markdown
-Login page crashes when using SSO
+## 现象
+
+说明实际发生的错误和影响。
+
+## 复现步骤
+
+1. ...
+
+## 预期结果
+
+...
+
+## 实际结果
+
+...
+
+## 环境
+
+- 版本：
+- 平台：
 ```
 
-**Content**:
+## Feature
+
 ```markdown
-## Description
+## 背景
 
-The login page crashes when users attempt to authenticate using SSO.
+说明当前问题和目标用户。
 
-## Steps to Reproduce
+## 期望行为
 
-1. Navigate to login page
-2. Click 'Sign in with SSO'
-3. Page crashes
+说明最终可观察能力，不预设不必要的实现细节。
 
-## Expected Behavior
+## 验收标准
 
-SSO authentication should complete and redirect to dashboard.
-
-## Actual Behavior
-
-Page becomes unresponsive and displays error.
+- [ ] ...
 ```
 
-### Example 2: Feature Request
-
-**User**: "Create a feature request for dark mode with high priority"
-
-**Title**:
-```markdown
-Add dark mode support
-```
-
-**Content**:
-```markdown
-## Summary
-
-Add dark mode theme option for improved user experience and accessibility.
-
-## Motivation
-
-- Reduces eye strain in low-light environments
-- Increasingly expected by users
-
-## Proposed Solution
-
-Implement theme toggle with system preference detection.
-
-## Acceptance Criteria
-
-- [ ] Toggle switch in settings
-- [ ] Persists user preference
-- [ ] Respects system preference by default
-```
-
-## Common Labels
-
-Use these standard labels when applicable:
-
-| Label | Use For |
-|-------|---------|
-| `bug` | Something isn't working |
-| `enhancement` | New feature or improvement |
-| `documentation` | Documentation updates |
-| `good first issue` | Good for newcomers |
-| `help wanted` | Extra attention needed |
-| `question` | Further information requested |
-| `wontfix` | Will not be addressed |
-| `duplicate` | Already exists |
-| `high-priority` | Urgent issues |
-
-## Tips
-
-- Always confirm the repository context before creating issues
-- Ask for missing critical information rather than guessing
-- Link related issues when known: `Related to #123`
-- For updates, fetch current issue first to preserve unchanged fields
+只有在仓库中确认 label 存在时才添加；不要假定 `bug`、`enhancement` 或优先级 label 一定可用。

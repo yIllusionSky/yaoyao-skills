@@ -12,7 +12,7 @@
 ```markdown
 # <标题>
 
-Status: <in-progress|blocked|completed>
+Status: <in-progress|blocked|completed|cancelled>
 
 ## Summary
 
@@ -73,5 +73,7 @@ Status: <pending|changes requested|passed>
 - 新日志写在 `Log` 下最上方。
 - 可按需增加 `Notes`。
 - `Key Changes` 写本任务需要完成或已经完成的关键改动，不写通用执行步骤。
-- `completed` 表示对应任务已完成。
-- `blocked` 只在用户明确表示暂不实现或不需要该功能时使用，不由 agent 因执行失败自行设置。
+- `completed` 表示对应任务已完成并通过对应验收。
+- `blocked` 表示存在依赖、权限、外部状态或必要输入等真实阻塞，当前无法继续推进；把原因和解除条件写入日志。
+- `cancelled` 表示用户取消任务或将其移出范围。
+- 普通测试失败、review finding 或可继续修复的实现错误保持 `in-progress`。

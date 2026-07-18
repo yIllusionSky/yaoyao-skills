@@ -14,6 +14,9 @@ concurrency:
 
 env:
   PROJECT_NAME: ${{ github.event.repository.name }}
+  SERVER_BIN: __SERVER_BIN__
+  WITH_CLIENT: "__WITH_CLIENT__"
+  BUN_VERSION: 1.3.14
 
 jobs:
   docker:
@@ -21,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           lfs: true
 
@@ -61,50 +64,66 @@ jobs:
           Path("RELEASE_NOTES.md").write_text(notes + "\n", encoding="utf-8")
           PY
 
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: oven-sh/setup-bun@v2
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
-          bun-version: latest
+          toolchain: stable
 
-      - uses: extractions/setup-just@v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: Resolve image metadata
         id: meta
-        shell: bash
+        shell: python
         run: |
-          eval "$(just update-version)"
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
 
-          if [ -z "${SERVER_IMAGE:-}" ] || [ -z "${SERVER_TAG:-}" ]; then
-            echo "SERVER_IMAGE and SERVER_TAG are required."
-            exit 1
-          fi
+          version = os.environ["VERSION"]
+          metadata = json.loads(subprocess.check_output([
+              "cargo", "metadata", "--manifest-path", "server/Cargo.toml",
+              "--no-deps", "--format-version", "1",
+          ]))
+          manifest = (Path.cwd() / "server" / "Cargo.toml").resolve()
+          package = next(
+              (item for item in metadata["packages"] if Path(item["manifest_path"]).resolve() == manifest),
+              None,
+          )
+          if package is None:
+              raise SystemExit("server/Cargo.toml package not found in cargo metadata")
+          if package["version"] != version:
+              raise SystemExit(f"server version must match release: {package['version']} != {version}")
 
-          if [ "${SERVER_TAG}" != "${VERSION}" ]; then
-            echo "SERVER_TAG must match release version: ${SERVER_TAG} != ${VERSION}"
-            exit 1
-          fi
+          image_pattern = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
+          server_image = package["name"]
+          if not image_pattern.fullmatch(server_image):
+              raise SystemExit(f"server package name is not a valid local image name: {server_image}")
 
-          echo "server_image=${SERVER_IMAGE}" >> "$GITHUB_OUTPUT"
-          echo "server_tag=${SERVER_TAG}" >> "$GITHUB_OUTPUT"
+          output = Path(os.environ["GITHUB_OUTPUT"])
+          with output.open("a", encoding="utf-8") as stream:
+              stream.write(f"server_image={server_image}\n")
+              stream.write(f"server_tag={version}\n")
+              stream.write(f"server_bin={os.environ['SERVER_BIN']}\n")
+              stream.write(f"has_client={os.environ['WITH_CLIENT']}\n")
 
-          if [ -n "${CLIENT_IMAGE:-}" ] && [ -n "${CLIENT_TAG:-}" ]; then
-            if [ "${CLIENT_TAG}" != "${VERSION}" ]; then
-              echo "CLIENT_TAG must match release version: ${CLIENT_TAG} != ${VERSION}"
-              exit 1
-            fi
+              if os.environ["WITH_CLIENT"] == "true":
+                  client = json.loads(Path("client/package.json").read_text(encoding="utf-8"))
+                  client_image = client.get("name", "")
+                  client_version = client.get("version", "")
+                  if not image_pattern.fullmatch(client_image):
+                      raise SystemExit(f"client package name is not a valid local image name: {client_image}")
+                  if client_version != version:
+                      raise SystemExit(f"client version must match release: {client_version} != {version}")
+                  stream.write(f"client_image={client_image}\n")
+                  stream.write(f"client_tag={client_version}\n")
 
-            echo "has_client=true" >> "$GITHUB_OUTPUT"
-            echo "client_image=${CLIENT_IMAGE}" >> "$GITHUB_OUTPUT"
-            echo "client_tag=${CLIENT_TAG}" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_client=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       - name: Build server image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: ./server
           file: ./server/Dockerfile
@@ -112,14 +131,14 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.server_image }}:${{ steps.meta.outputs.server_tag }}
           build-args: |
-            APP_BIN=${{ steps.meta.outputs.server_image }}
+            APP_BIN=${{ steps.meta.outputs.server_bin }}
           load: true
           cache-from: type=gha,scope=server
           cache-to: type=gha,scope=server,mode=max
 
       - name: Build client image
         if: steps.meta.outputs.has_client == 'true'
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: ./client
           file: ./client/Dockerfile
@@ -163,7 +182,7 @@ jobs:
 
           tar -czf "release/$PROJECT_NAME-$VERSION.tar.gz" -C release/deploy .
 
-      - uses: softprops/action-gh-release@v3
+      - uses: softprops/action-gh-release@c12583777ecdfd3be55c69cf75464299dc01057e # v3
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}

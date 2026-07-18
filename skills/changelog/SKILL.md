@@ -1,162 +1,62 @@
 ---
 name: changelog
-description: 用于记录项目开发和发布过程中的有意义变更，并维护 changelog、版本记录和发布说明。
+description: 维护 Keep a Changelog 风格的 CHANGELOG.md；在开发和 PR 集成期间维护 [Unreleased]，在创建 vX.Y.Z tag 前审计变更、发布版本区块并准备 release notes。用于持续维护 changelog 的项目，不用于每个 commit、fixup 或 review 修复。
 ---
 
 # Changelog
 
-## Rule
+除固定关键词外，使用中文。默认维护仓库根目录 `CHANGELOG.md`。
 
-- 除固定关键词外，使用中文。
-- 默认维护仓库根目录 `CHANGELOG.md`。
-- 有意义的用户或工程变更，应体现在 `CHANGELOG.md` 的 `[Unreleased]` 区块；如果属于已有发布事项，更新原条目；如果是独立发布事项，新增条目。没有该区块时先创建。
-- 发布 tag 时，将当前 `[Unreleased]` 标题改为 `[<version>] - <YYYY-MM-DD HH:mm>`；如果 tag 是 `vX.Y.Z`，这里的 `<version>` 写 `X.Y.Z`，不带 `v`。
-- 维护 `[Unreleased]` 时，遵循下面的记录原则。
+## 维护原则
 
-## [Unreleased] 记录原则
+- 只记录用户或工程使用者需要了解的最终变化，不记录 commit、PR、review、fixup、amend、返工或测试修复过程。
+- 记录新功能、行为变化、breaking change、废弃、移除、已发布能力的修复、安全修复，以及重要的配置、部署或兼容性变化。
+- 默认不记录行为不变的重构、格式化、低影响依赖整理、测试补充和内部措辞调整；这些变化影响升级、部署或使用方式时除外。
+- 只保留有内容的 `Added`、`Changed`、`Deprecated`、`Removed`、`Fixed`、`Security` 分类，顺序固定。删除空分类、注释和占位列表项。
+- 一个发布事项只保留一个条目。同一功能、规则、文件、命令、配置、文档、工作流或工程能力在发布前的补充、修正和完善，更新已有条目，不新增过程条目。
 
-`[Unreleased]` 只描述下一次发布后的最终变化，不记录开发过程。发生在当前 `[Unreleased]` 发布前的 PR 反馈、fixup、amend、测试修复、返工等开发动作，都属于当前 `[Unreleased]` 的开发周期；这些开发动作本身不能作为新增 changelog 条目的理由。
+## 维护 `[Unreleased]`
 
-如果 `CHANGELOG.md` 中还没有任何真实发布版本区块，当前 `[Unreleased]` 表示首个版本的最终发布内容。首版 `[Unreleased]` 只能使用 `Added`：因为首版之前没有已发布内容，不能产生相对于旧版本的变更、废弃、移除或修复；所有最终发布内容都属于首次新增。对未发布内容的补充、调整、修正、替换、完善，应不改 changelog 或归并到已有 `Added` 条目；只有新增独立能力时，才新增 `Added` 条目。
+按以下顺序处理：
 
-维护 `[Unreleased]` 时必须按这个顺序处理：
+1. 读取当前 `[Unreleased]` 的全部条目和历史版本。
+2. 判断本次变化是否属于已有发布事项。
+3. 已有条目准确描述最终状态时不修改；不准确时更新原条目。
+4. 只有独立且值得在下一次发布说明中出现的最终变化，才新增条目。
+5. 清理空分类、占位符和重复条目。
 
-1. 先读取当前 `[Unreleased]` 的所有条目。
-2. 判断本次变更是否属于已有发布事项。
-3. 如果属于已有事项，原条目已准确描述最终状态则不改；否则更新原条目，不要新增条目或扩展结构来记录这次修改。
-4. 如果不属于已有事项，只有当它是下一次发布需要单独说明的最终变化时，才新增条目；否则不修改 changelog。
+没有任何真实发布版本时，将 `[Unreleased]` 视为首版内容。首版默认只使用 `Added`；发布前的修正合并进对应 `Added` 条目，不单独记录为 `Changed`、`Removed` 或 `Fixed`。
 
-“同一发布事项” 按发布说明中的含义判断，不按本次开发动作判断；同一功能、规则、文件、命令、配置、文档、工作流或工程能力的补充、调整、修正、替换、完善，都属于同一事项，应不改 changelog 或更新原条目。
+判断条目是否应合并存在疑问时，读取 [examples](./references/examples.md)。
 
-## 示例 1：未发布事项只记录最终状态
-错误：
+## 发布版本
 
-```markdown
-## [Unreleased]
+发布前先确认目标 tag 严格匹配 `vX.Y.Z`。找到当前 `HEAD` 可达的上一个稳定 semver tag；没有时按首版处理。
 
-### Added
+使用 commit 正文和 diff 审计 `[Unreleased]`，不要把 commit 逐条转换成 changelog：
 
-- 添加用户登录功能。
-
-### Changed
-
-- 调整登录表单字段顺序。
-
-### Deprecated
-
-- 标记旧登录参数不再推荐使用。
-
-### Removed
-
-- 移除登录接口中的临时调试参数。
-
-### Fixed
-
-- 修复登录失败时错误提示不准确的问题。
-
-### Security
-
-- 登录密码使用 SRP 协议传输。
-
-## [0.1.0] - 2026-05-20 10:30
-
-### Added
-
-- 添加项目初始化配置和基础命令。
+```bash
+git log --reverse --no-merges --format='%H%n%s%n%b%n---' <previous-tag>..HEAD
+git diff --stat <previous-tag>..HEAD
+git diff --name-status <previous-tag>..HEAD
 ```
 
-正确：
+首版省略 `<previous-tag>..`。审计后：
+
+1. 补充遗漏的重要变化，修正与最终实现不一致的描述。
+2. 没有有效条目时停止，不创建空版本。
+3. 将当前 `[Unreleased]` 内容发布为 `## [X.Y.Z] - YYYY-MM-DD`，版本号不带 `v`，日期不带时间。
+4. 在顶部重新创建空的 `## [Unreleased]`。
+5. 使用新版本区块正文作为 GitHub Release notes。
+
+## 最小格式
 
 ```markdown
 ## [Unreleased]
 
-### Added
-
-- 添加用户登录功能，支持账号密码认证、登录失败提示和基于 SRP 协议的密码传输。
-
-## [0.1.0] - 2026-05-20 10:30
+## [1.2.3] - 2026-07-14
 
 ### Added
 
-- 添加项目初始化配置和基础命令。
-```
-
-## 示例 2：已发布能力的后续变化单独记录
-
-错误：
-
-```markdown
-## [Unreleased]
-
-### Added
-
-- 添加项目初始化配置使用分层配置文件。
-
-## [0.1.0] - 2026-05-20 10:30
-
-### Added
-
-- 添加项目初始化配置和基础命令。
-```
-
-正确：
-
-```markdown
-## [Unreleased]
-
-### Changed
-
-- 项目初始化配置改为使用分层配置文件。
-
-## [0.1.0] - 2026-05-20 10:30
-
-### Added
-
-- 添加项目初始化配置和基础命令。
-```
-
-## Template
-
-```markdown
-## [Unreleased]
-
-### Added
-
-<!-- 新添加的功能。 -->
-
--
-
-### Changed
-
-<!-- 对现有功能的变更。 -->
-
--
-
-### Deprecated
-
-<!-- 已经不建议使用、未来会移除的功能。 -->
-
--
-
-### Removed
-
-<!-- 已经移除的功能。 -->
-
--
-
-### Fixed
-
-<!-- 对 bug 的修复。 -->
-
--
-
-### Security
-
-<!-- 对安全性的改进。 -->
-
--
-
-## [<version>] - <YYYY-MM-DD HH:mm>
-
-...
+- 添加示例能力。
 ```

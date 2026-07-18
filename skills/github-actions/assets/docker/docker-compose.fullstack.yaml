@@ -1,0 +1,41 @@
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      args:
+        APP_BIN: ${SERVER_BIN}
+    image: ${SERVER_IMAGE}:${SERVER_TAG}
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT}:8080"
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    image: ${CLIENT_IMAGE}:${CLIENT_TAG}
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "${CLIENT_PORT}:3000"
+
+  pingap:
+    image: vicanso/pingap:0.13.4
+    container_name: pingap-instance
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./pingap_data:/opt/pingap
+      - ./pingap/conf/example.conf:/opt/pingap/conf/pingap.conf:ro
+    environment:
+      PINGAP_CONF: ${PINGAP_CONF}
+      PINGAP_ADMIN_ADDR: ${PINGAP_ADMIN_ADDR}
+      PINGAP_ADMIN_USER: ${PINGAP_ADMIN_USER}
+      PINGAP_ADMIN_PASSWORD: ${PINGAP_ADMIN_PASSWORD}
+    command:
+      - pingap
+      - --autoreload

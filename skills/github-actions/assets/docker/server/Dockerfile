@@ -10,7 +10,7 @@ COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
-ARG APP_BIN=app
+ARG APP_BIN=__SERVER_BIN__
 ARG TARGETARCH
 COPY --from=planner /app/recipe.json recipe.json
 RUN case "$TARGETARCH" in \
@@ -28,8 +28,7 @@ RUN case "$TARGETARCH" in \
     cargo build --release --target "$rust_target" --bin "$APP_BIN" && \
     cp "target/$rust_target/release/$APP_BIN" /tmp/app
 
-FROM alpine AS runtime
-ARG APP_BIN=app
+FROM alpine:3.22 AS runtime
 RUN addgroup -S myuser && adduser -S myuser -G myuser
 COPY --from=builder /tmp/app /usr/local/bin/app
 USER myuser

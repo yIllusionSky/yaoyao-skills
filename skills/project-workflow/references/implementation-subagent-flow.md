@@ -4,7 +4,7 @@
 
 ## Main Agent 下发要求
 
-必须知道自己负责的 `project-worktree`、`project-path`、`Allowed Paths`、`<task-id>`、`workflow/<task-id>/<project-worktree>`、项目 `task.md` 路径和项目 `log.md` 路径。读取该 worktree 下的 `.skills` 加载所需技能。
+必须知道自己负责的 `project-worktree`、`project-path`、`Allowed Paths`、`<task-id>`、`workflow/<task-id>/<project-worktree>`、项目 `task.md` 路径和项目 `log.md` 路径。读取该 worktree 下的 `.skills`；文件每行一个 skill 名。无法找到或加载声明的必要 skill 时，停止并返回 main agent。
 
 ## 工作目录
 
@@ -57,6 +57,12 @@ git switch -c workflow/<task-id>/<project-worktree>
 
 ```bash
 git switch workflow/<task-id>/<project-worktree>
+```
+
+切换已有分支后确认 `<task-id>` 是其祖先；不是时停止并返回 main agent，不在错误基线上继续实现：
+
+```bash
+git merge-base --is-ancestor <task-id> HEAD
 ```
 
 6. 在自己的 `project-worktree` 中，只修改 `Allowed Paths` 和对应 workflow 记录；实现完成后，如本次变更影响当前子项目入口、职责、功能行为、运行方式、手动测试方式或配置，使用 `project-docs` 技能更新当前子项目长期文档；不得在 workspace 根创建或修改 `apps/`、`packages/`、`crates/` 等 `<project-path>` 父目录。

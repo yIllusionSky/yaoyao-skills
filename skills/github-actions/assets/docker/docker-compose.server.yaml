@@ -3,24 +3,15 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
+      args:
+        APP_BIN: ${SERVER_BIN}
     image: ${SERVER_IMAGE}:${SERVER_TAG}
     restart: unless-stopped
     ports:
       - "${SERVER_PORT}:8080"
 
-  client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-    image: ${CLIENT_IMAGE}:${CLIENT_TAG}
-    restart: unless-stopped
-    depends_on:
-      - server
-    ports:
-      - "${CLIENT_PORT}:3000"
-
   pingap:
-    image: vicanso/pingap:latest
+    image: vicanso/pingap:0.13.4
     container_name: pingap-instance
     restart: always
     ports:

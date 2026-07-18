@@ -1,30 +1,11 @@
 # Main Agent Flow
 
-本参考定义任务编排协议，包括任务记录、项目拆分、worktree 编排、subagent 启动、主集成和总体验收。执行前必须先读取 `workspace-layout.md`、`task-format.md`、`projects.md` 和 `commit.md`。
+本参考定义非 team 本地任务编排协议。执行前必须读取 `workspace-layout.md`、`task-format.md`、`projects.md` 和 `commit.md`。
 
 ## 工作区初始化
 
-参考目录布局：
-
-```text
-workspace/
-├── main/
-├── develop/
-│   ├── .workflow/
-│   │   ├── .projects
-│   │   └── <task-id>/
-│   │       ├── task.md
-│   │       ├── log.md
-│   │       └── <project-worktree>/
-│   │           ├── task.md
-│   │           └── log.md
-│   └── <project-path>/
-└── <project-worktree>/
-    ├── .skills
-    └── <project-path>/
-```
-
-1. `main/` 是主基线 worktree；如果 `main/` 不存在，则创建 `main/` 并初始化 git 仓库：
+1. 确认当前目录是用户指定的专用 workspace，且符合 `workspace-layout.md`。不要因为缺少 `main/` 就在已有项目目录内创建嵌套仓库。
+2. `main/` 不存在时，仅在专用 workspace 没有无法确认用途的项目内容时初始化：
 
 ```bash
 mkdir main
@@ -32,80 +13,58 @@ git -C main init -b main
 git -C main commit --allow-empty -m "chore: 初始化 main 基线"
 ```
 
-2. `develop/` 是集成 worktree 目录，不要求存在同名分支；后续主集成、根配置、跨项目检查都在 `develop/` 中执行。
-3. 如果 `develop/` 不存在，从 `main` detached 基线创建：
+3. `develop/` 是 detached 集成 worktree，不要求存在同名分支。不存在时从 `main` 创建：
 
 ```bash
 git -C main worktree add --detach ../develop main
 ```
 
-## 工作流程
+## 阶段 1：计划和任务分支
 
-必须按下面阶段从上到下执行；上一阶段未完成前不得进入下一阶段。
-
-### 阶段 1：完成计划
-
-1. 若不存在 `develop/` worktree，参考“工作区初始化”。
-2. 确定本次任务使用的 `<task-id>`。
-3. 在 `develop/` 中创建或切换 `<task-id>` 集成分支：
+1. 确认 `develop/` 工作区干净；存在改动时先判断来源，不覆盖或丢弃。
+2. 确定唯一的 `<task-id>`。已有同名任务且不是继续执行时，按 `task-format.md` 生成新名称。
+3. 已有任务分支时直接切换；新任务先回到 detached `main` 基线，再创建分支，禁止从上一个任务分支派生：
 
 ```bash
+git -C develop switch --detach main
 git -C develop switch -c <task-id>
 ```
 
-如果分支已存在，切到该分支继续：
+4. 读取 `.workflow/.projects`。只有列出的 `<project-path>` 可以创建独立 worktree 和 implementation subagent。
+5. 创建或更新根 `task.md`、项目 `task.md` 和对应 `log.md`，明确 `project-path`、`project-worktree`、`Allowed Paths`、验收标准和测试计划。
+6. 同一个共享文件或公共接口只分配给一个 implementation subagent；其他项目通过已约定接口协作。
+7. 提交任务记录和委派所需的最小项目骨架，确保项目 worktree 能读取相同基线。
 
-```bash
-git -C develop switch <task-id>
-```
+## 阶段 2：准备项目 worktree
 
-4. 读取 `.workflow/.projects` 得到允许单独创建 worktree/subagent 的 `<project-path>` 列表；本次任务选中的项目必须来自该列表。未列入该文件的 package/crate/module 不创建独立 project worktree，也不单独分派 implementation subagent。需要修改未列入目录时，通过相关项目任务的 `Allowed Paths` 授权。
-5. 根据用户需求或总体验收 review 反馈，在 `develop/.workflow/<task-id>/` 创建或更新根 `task.md`。
-6. 每个需要独立实现的项目必须确定 `project-path`、`project-worktree` 和 `Allowed Paths`；`project-path` 是本次任务选中的项目路径，`project-worktree` 是外层 worktree 目录名，`Allowed Paths` 是该 subagent 除 workflow 记录外可修改的路径集合。
-7. 为每个需要独立实现的项目创建或更新 `develop/.workflow/<task-id>/<project-worktree>/task.md`；项目 `task.md` 必须写明 `project-path` 和 `Allowed Paths`。
-8. 同一个共享包如需被多个 subagent 修改，必须在各自任务中说明修改边界，避免重复修改同一文件或同一接口。
-9. 计划、拆分文件和项目任务记录完成前，不得进入项目实现。
-10. 阶段 1 产生的任务拆分文件和最小项目结构必须在 `<task-id>` 分支形成提交，确保后续项目 worktree 可以读取任务文件。
+对每个项目执行：
 
-### 阶段 2：准备项目 worktree
-
-1. 检查本次任务选中的每个 `<project-path>` 是否存在对应 `<project-worktree>/`。
-2. 若不存在，则创建该项目 worktree，并写入 `<project-worktree>/.skills`：
+1. 不存在时从 `<task-id>` 创建 detached worktree：
 
 ```bash
 git -C develop worktree add --detach ../<project-worktree> <task-id>
 ```
 
-`<project-worktree>` 由 `<project-path>` 归一化得到：去掉结尾 `/`，把 `/` 替换为 `-`，例如 `apps/backend` -> `apps-backend`。
-`.skills` 每行一个技能名；`.gitignore` 忽略 `.skills`。
+2. 已存在时验证它属于同一 Git 仓库、工作区状态可解释，并且没有其他任务的未完成改动；无法确认时停止，不复用该目录。
+3. 写入 `<project-worktree>/.skills`，每行一个必要 skill 名；`.gitignore` 必须忽略该文件。
 
-### 阶段 3：执行和集成
+## 阶段 3：分批执行和集成
 
-1. 创建阶段：连续为本次任务选中的项目创建 implementation subagent；这些项目必须存在于 `.workflow/.projects`。所有 `spawn_agent` 调用完成前，禁止 `wait_agent`，禁止 main agent 修改任何项目任务授权路径下的文件。创建时必须告诉对方“你是 implementation subagent”，必须使用 `project-workflow`，读取 `workspace-layout`、`task-format`、`commit` 和 `implementation-subagent-flow`，并告知：
-   - `project-worktree`
-   - `project-path`
-   - `Allowed Paths`
-   - `workflow/<task-id>/<project-worktree>`
-   - `.workflow/<task-id>/<project-worktree>/task.md`
-   - `.workflow/<task-id>/<project-worktree>/log.md`
-2. 等待和集成阶段：所有 implementation subagent 创建完成后才开始等待结果；任一 subagent 完成实现、自测和 commit 后，立即在 `develop/` 当前 `<task-id>` 分支中 merge 对应项目分支。
+1. 根据当前可用 agent slot 启动第一批 implementation subagent，不超过可用容量；项目数超过容量时保留等待队列。
+2. 任一 subagent 完成实现、自测和 commit 后，立即在 `develop/` 的 `<task-id>` 分支 merge 对应分支：
 
 ```bash
 git -C develop merge workflow/<task-id>/<project-worktree>
 ```
 
-如有冲突，在本次 merge 中解决。
+3. 一个 slot 释放后再启动下一个等待项目，直到全部完成。不要要求所有项目都 spawn 后才开始等待。
+4. merge conflict 由 main agent 在当前 merge 中处理；项目实现问题重新派回对应 implementation subagent，main agent 不替代其实现。
+5. 全部项目 merge 后完成根配置、长期文档、跨项目引用和整体测试入口等根级集成，并记录到根 `log.md`。
 
-3. main agent 只允许在 merge 冲突解决和根级集成阶段修改项目任务涉及路径、根配置、长期文档和 workflow 记录；不得替代 implementation subagent 直接实现项目任务。
-4. 所有项目任务分支都 merge 到 `develop/` 的 `<task-id>` 分支后，先在 `develop/` 中完成根级集成处理，再进入总体验收。根级集成处理包括但不限于：
-   - 根 `Cargo.toml`、workspace members、package 配置等根配置更新。
-   - 如果本次变更影响项目入口、目录结构、子项目职责、架构边界、功能行为、运行方式、手动测试方式或配置，使用 `project-docs` skill 检查并更新长期文档。
-   - 跨项目引用、构建入口、测试入口和整体命令检查。
-5. 将根级集成处理结果记录到 `develop/.workflow/<task-id>/log.md`。
+## 阶段 4：总体验收和交付
 
-### 阶段 4：总体验收
-
-1. 创建 review subagent，审查对象必须是 `develop/` 当前 `<task-id>` 分支状态，包括已 merge 的项目改动、根配置、文档和跨项目集成结果。创建时必须告诉对方“你是 review subagent”，必须使用 `project-workflow`，读取 `workspace-layout`、`task-format`、`commit` 和 `review-subagent-flow`。
-2. 根据 review 结果更新根 `log.md` 和相关 `task.md`。
-3. 提交 commit。
-4. 验收失败时，回到“阶段 1：完成计划”第 3 步，再严格按本流程继续。
+1. 启动 review subagent，审查 `<task-id>` 相对 `main` 的完整变化、授权路径、记录和测试覆盖。
+2. 有 finding 时更新任务记录，并重新派给对应 implementation subagent；修复后重新集成和 review。
+3. review 通过后更新状态和日志，在 `<task-id>` 分支提交最终记录。
+4. 确认 `develop/` 当前分支仍为 `<task-id>` 且工作区干净，向用户交付该任务分支；不自动 merge `main`、push 或创建 PR。
+5. 默认保留项目 worktree 和任务分支，只在结果中列出可清理项；未经用户要求不删除。

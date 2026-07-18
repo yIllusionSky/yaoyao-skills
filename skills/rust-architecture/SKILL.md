@@ -15,7 +15,7 @@ description: Rust 项目架构规范技能。用于设计、创建或调整 Rust
 
 - `domain`：纯业务核心，放实体、值对象、业务规则、状态流转、领域事件和纯校验逻辑。不得依赖外部框架、数据库、网络、文件系统、CLI、HTTP 或第三方 SDK。
 - `application`：用例和流程编排，放应用服务、命令/查询对象、事务边界、权限/上下文检查、跨能力编排。可以依赖 `domain` 和 `ports`，不得直接依赖具体外部实现。顶层目录使用 `application`，不要用 `services` 或 `system` 作为层名；确实需要 service 组织形式时，放在 `application` 内部模块。
-- `ports`：`application` 需要的边界 trait，只为外部能力建立接口，例如数据库访问、对象存储、第三方服务、通知发送、时间、ID 生成、事务管理等。不要为普通 helper、纯内部函数或没有边界意义的逻辑建立 trait。
+- `ports`：由 `application` 拥有的外部能力边界 trait，例如数据库访问、对象存储、第三方服务、通知发送、时间、ID 生成、事务管理等。不要为普通 helper、纯内部函数或没有边界意义的逻辑建立 trait；只有多个入口确实需要稳定用例接口时才增加 inbound port。
 - `adapters`：外部世界的接入和实现。进入系统的 adapter 包括 HTTP 和 CLI；系统调用外部的 adapter 包括数据库、文件系统/对象存储、第三方服务等。`adapters` 负责实现 `ports`、转换外部类型、做错误映射和完成具体 IO。
 
 ## Adapter 目录
@@ -32,7 +32,7 @@ description: Rust 项目架构规范技能。用于设计、创建或调整 Rust
 
 - 简单 CLI 或小工具：优先使用 `main.rs`、`cli.rs`、`core.rs`、`error.rs`。`main.rs` 只安装 `color-eyre`、解析 CLI、调用 `core` 入口；`cli.rs` 使用 `clap`；`core.rs` 放核心执行逻辑和纯业务逻辑；`error.rs` 使用 `thiserror`。不需要 `lib.rs`，除非同时要作为 library 复用。
 - 稍复杂 CLI 或小工具：使用 `main.rs`、`cli.rs`、`commands/`、`core/`、`adapters/`、`error.rs`。`commands/` 放不同命令入口，`adapters/` 放文件系统、网络、时间、外部命令等 IO 实现。
-- 普通 library crate：使用 `lib.rs`、`error.rs`、`types.rs`，按需添加 `config.rs`、`client.rs`。`lib.rs` 控制 public API，不塞大量实现。library crate 不把 `color-eyre` 作为公共错误类型。
+- 普通 library crate：使用 `lib.rs`、`error.rs`、`types.rs`，按需添加 `config.rs`、`client.rs`。`lib.rs` 控制 public API，不塞大量实现；`types.rs` 只放少量内聚类型，增长后按领域拆分。library crate 不把 `color-eyre` 作为公共错误类型，并在 `Cargo.toml` 声明支持的 `rust-version`。
 - 后端服务或复杂应用：使用 `domain/`、`application/`、`ports/`、`adapters/`、`config.rs`、`error.rs`、`main.rs`。`main.rs` 负责组装 adapters、application 和配置。
 
 ## Crate 拆分
@@ -46,41 +46,20 @@ description: Rust 项目架构规范技能。用于设计、创建或调整 Rust
 
 ## 错误处理
 
-- 每个 crate 都要有自己的错误管理，优先使用 `thiserror` 定义结构化错误。
+- 需要调用方匹配错误分支的 crate 使用 `thiserror` 定义结构化错误；极小型二进制可以只在顶层使用 `color-eyre`，不要为了形式创建没有语义的错误枚举。
 - `color-eyre` 只用于应用入口、CLI、server startup 和顶层错误报告，不作为 library crate 的公共错误类型。
-- HTTP adapter 按 RESTful 语义返回状态码：成功使用 `2xx`，例如 `200 OK`；失败使用非 `2xx`，其中 `4xx` 表示客户端输入、权限、资源不存在等可预期错误，`5xx` 表示服务端内部错误。
-- HTTP 错误响应 body 使用稳定的大写字符串错误码和必要上下文字段：
+- 项目存在 REST HTTP adapter 时读取 [HTTP errors](./references/http-errors.md)；非 REST、没有客户端错误码契约或不需要多语言时不要套用对应规则。
 
-```json
-{
-  "code": "PROBLEM_NOT_FOUND",
-  "problem_id": "123"
-}
-```
+## Library API
 
-`code` 使用 `SCREAMING_SNAKE_CASE`，作为 API 稳定错误码。前端或客户端用 `code` 直接查错误文案模板，不把内部错误直接暴露给客户端，并在服务端记录详细错误。
-- 错误文案 i18n 按语言拆文件，放在项目根目录的 `locales/`：
-
-```text
-locales/
-  zh-CN/
-    errors.json
-  en-US/
-    errors.json
-```
-
-`errors.json` 内直接使用 API 错误码作为 key：
-
-```json
-{
-  "PROBLEM_NOT_FOUND": "题目 {problem_id} 不存在"
-}
-```
+- 明确 public API，默认保持最小可见性；不要为了测试把内部实现改成 `pub`。
+- 使用 feature 管理可选依赖和可选能力；feature 名表达能力，不表达具体依赖实现。
+- 修改公开类型、错误、feature 或 MSRV 时检查 SemVer 和下游兼容性。
 
 ## 格式化与 CI
 
-- 修改 Rust 代码后，在 workspace 根目录只格式化本次修改涉及的 crate：`cargo fmt -p <package>`。
-- CI 检查必须包含本次修改涉及 crate 的 `cargo clippy -p <package> --all-targets --all-features -- -D warnings`。不要默认运行全 workspace clippy，除非本次修改确实影响 workspace 集成层或多个 crate 的公共契约。
+- 本地修改后优先只检查涉及 crate：`cargo fmt -p <package>`、`cargo clippy -p <package> --all-targets --all-features -- -D warnings` 和 `cargo test -p <package> --all-features`。
+- CI 默认运行 workspace 级 fmt、clippy 和 test，验证跨 crate 集成；项目规模导致成本不可接受时，必须另有可靠的受影响范围计算和定期全量检查。
 
 ## 测试规则
 
@@ -89,5 +68,5 @@ locales/
 - 集成测试写在 `tests/` 目录下，每个文件对应一个明确业务流程、公开 API 或主要能力，文件名表达业务含义，例如 `order_flow.rs`、`callback_flow.rs`、`parser_roundtrip.rs`、`cli_check.rs`、`client_request.rs`。
 - 集成测试用于验证公开 API、模块协作、真实 adapter 或近真实环境。数据库、文件系统等关键依赖尽量使用真实或临时隔离环境；第三方服务使用 sandbox、mock server 或本地 fake service，不打生产环境。
 - `tests/` 集成测试不能依赖 `#[cfg(test)]` 生成的 `Mock*`。优先使用 fake adapter、in-memory adapter 或 mock server；确实需要复用测试工具时，使用显式 feature-gated `test-support`，不要默认把 mock 作为公共 API 暴露。
-- 测试函数在有多步 fallible 操作时优先返回 `Result`；简单断言测试可以直接使用 `assert`。
+- 测试函数在有多步 fallible 操作时优先返回 `Result`；简单断言测试可以直接使用 `assert!`、`assert_eq!` 或 `assert_ne!`。
 - 只写有效测试，不写只验证 mock 配置、getter/setter 或框架默认行为的低价值测试。

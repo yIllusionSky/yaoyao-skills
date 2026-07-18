@@ -1,15 +1,9 @@
-## Format
+# Tag
 
-直接打轻量 tag 即可。
-
-## Reference
-
-tag: use `vX.Y.Z`, for example `v0.1.0`, `v1.2.3`
-command: create a lightweight tag only
-changelog: before tagging, use `team-changelog` to summarize commits since the previous semver tag into `[X.Y.Z] - YYYY-MM-DD` without the `v` prefix
-
-## Example
+确认 changelog 已存在目标版本区块后创建轻量 tag：
 
 ```bash
 git tag v1.2.3
 ```
+
+tag 必须严格匹配 `vX.Y.Z`。版本区块使用 `## [X.Y.Z] - YYYY-MM-DD`，版本号不带 `v`。
