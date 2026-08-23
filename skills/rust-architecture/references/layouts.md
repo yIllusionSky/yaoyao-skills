@@ -1,6 +1,6 @@
 # Rust 项目布局示例
 
-这些目录树用于说明写法，不是必须创建清单。只创建当前项目实际需要的文件和目录；未使用的能力不要为了模板完整性补齐。
+这些目录树只说明结构如何随职责增长，不是必须创建清单。示例中的 `course`、`question`、`import` 等名称必须替换成项目真实业务概念；没有对应能力时不创建文件或目录。
 
 ## 简单 CLI 或小工具
 
@@ -8,136 +8,177 @@
 src/
 ├── main.rs
 ├── cli.rs
-├── core.rs
+├── run.rs
 └── error.rs
 ```
 
-- `main.rs`：只负责安装 `color-eyre`、解析 CLI、调用 `core` 入口。
-- `cli.rs`：使用 `clap` 定义命令和参数。
-- `core.rs`：核心执行逻辑和纯业务逻辑。
-- `error.rs`：使用 `thiserror` 定义当前 crate 的错误类型。
-- 不需要 `lib.rs`，除非同时要作为 library 被其他 crate 复用。
+- `main.rs`：安装 `color-eyre`、解析 `clap` 参数、调用 `run`。
+- `cli.rs`：只定义命令和参数。
+- `run.rs`：在规模很小时承载单一执行流程；出现多个独立命令、业务规则或 IO 能力后立即按下一个布局拆分。
+- `error.rs`：需要结构化错误时使用 `thiserror`。
 
-## 稍复杂 CLI 或小工具
+## 增长后的 CLI
 
 ```text
 src/
 ├── main.rs
 ├── cli.rs
 ├── commands/
-│   └── mod.rs
-├── core/
-│   └── mod.rs
+│   ├── mod.rs
+│   ├── check.rs
+│   └── export.rs
+├── manifest.rs
+├── policy.rs
 ├── adapters/
-│   └── mod.rs
+│   ├── mod.rs
+│   ├── filesystem.rs
+│   └── remote.rs
 └── error.rs
 ```
 
-- `main.rs`：初始化、安装 `color-eyre`、解析 CLI、分发命令。
-- `cli.rs`：使用 `clap` 定义命令和参数。
-- `commands/`：不同命令的执行入口。
-- `core/`：核心逻辑和纯业务逻辑。
-- `adapters/`：文件系统、网络、时间、外部命令等 IO 实现。
-- `error.rs`：使用 `thiserror` 定义当前 crate 的错误类型。
+- `commands` 按用户可执行命令组织入口，不承载共享业务规则。
+- `manifest`、`policy` 是示意业务能力，共享规则按真实领域命名，不汇总到泛化 `core.rs`。
+- `adapters` 只放文件、网络、时间或外部命令等 IO。
+- 各 `mod.rs` 只声明模块和受控导出。
 
-## 普通 Library Crate
+## 小型 Library Crate
 
 ```text
 src/
 ├── lib.rs
-├── error.rs
-└── types.rs
+├── client.rs
+├── model.rs
+└── error.rs
 ```
 
-- `lib.rs` 控制 public API，不塞大量实现。
-- `error.rs` 使用 `thiserror` 定义 crate 自己的结构化错误。
-- `types.rs` 放公共类型。
-- 需要配置时添加 `config.rs`；需要封装外部 client 时添加 `client.rs`。
-- library crate 不应把 `color-eyre` 作为公共错误类型。
+- 只创建实际需要的模块；纯模型库不需要 `client.rs`。
+- `lib.rs` 控制 public API，不塞实现。
+- `model.rs` 只适合少量内聚类型；出现多个独立概念时按领域名称拆分，不长期使用泛化 `types.rs`。
 
-## 后端服务或复杂应用
+## 增长后的 Library Crate
+
+```text
+src/
+├── lib.rs
+├── client.rs
+├── config.rs
+├── signing.rs
+├── request.rs
+├── response.rs
+└── error.rs
+```
+
+模块按能力或公开概念拆分。不要为了目录对称创建空文件，也不要让 `client.rs` 同时承担配置、签名、协议类型和全部实现。
+
+## 小型后端服务
+
+```text
+src/
+├── domain.rs
+├── application.rs
+├── ports.rs
+├── adapters.rs
+├── adapters/
+│   ├── http.rs
+│   └── db.rs
+├── config.rs
+├── error.rs
+├── lib.rs
+└── main.rs
+```
+
+- 仅当每层仍只有一个内聚能力时使用平铺文件。
+- `adapters.rs` 只声明实际存在的 adapter。
+- `main.rs` 只组装配置、日志、运行时和依赖。
+- 任一层出现第二个可独立变化的业务能力时，改用目录模块，不继续扩张单文件。
+
+## 增长后的后端服务
 
 ```text
 src/
 ├── domain/
-│   └── mod.rs
+│   ├── mod.rs
+│   ├── course.rs
+│   ├── knowledge_point.rs
+│   ├── question.rs
+│   └── review.rs
 ├── application/
-│   └── mod.rs
+│   ├── mod.rs
+│   ├── courses.rs
+│   ├── questions.rs
+│   ├── imports.rs
+│   └── images.rs
 ├── ports/
-│   └── mod.rs
+│   ├── mod.rs
+│   ├── course_repository.rs
+│   ├── question_repository.rs
+│   ├── import_job_repository.rs
+│   └── object_storage.rs
 ├── adapters/
 │   ├── mod.rs
-│   └── <http|cli|db|storage|external>/
-│       └── mod.rs
+│   ├── http/
+│   │   ├── mod.rs
+│   │   ├── courses.rs
+│   │   ├── questions.rs
+│   │   ├── imports.rs
+│   │   └── images.rs
+│   └── db/
+│       ├── mod.rs
+│       ├── courses.rs
+│       ├── questions.rs
+│       ├── imports.rs
+│       └── shared.rs
 ├── config.rs
 ├── error.rs
+├── lib.rs
 └── main.rs
 ```
 
-- `main.rs` 负责组装 adapters、application 和配置。
-- HTTP handler、CLI 命令、数据库实现、存储实现、第三方服务接入都放在 `adapters` 下。
-- `application` 通过 `ports` 依赖外部能力，不直接依赖具体实现。
-- `adapters` 子目录只在确实使用对应能力时创建；不要照示例补齐全部目录。
+- 四层是依赖分类；层内文件按业务能力、聚合或用例拆分。
+- port 按调用方所需能力命名，不建立覆盖整个服务的 repository trait。
+- HTTP route 和 DB 实现都继续按业务能力拆分；`shared.rs` 只放确实跨模块共享的底层机制，不接收无归属逻辑。
+- `mod.rs` 只声明模块和受控导出，不承载整层实现。
+- DTO、事务和跨层错误放置遵守 [backend design](./backend-design.md)。
 
-## 拆分后的 Workspace 示例
+## 同时提供 CLI 和 Library
+
+```text
+src/
+├── main.rs
+├── lib.rs
+├── cli.rs
+├── commands/
+│   ├── mod.rs
+│   └── export.rs
+├── document.rs
+└── error.rs
+```
+
+- `main.rs` 负责 `clap`、`color-eyre` 和调用 library。
+- `commands` 只服务 CLI；可复用能力由 `lib.rs` 暴露。
+- library 模块不依赖 CLI 参数类型或顶层报告类型。
+
+## Workspace 与 Capability Crate
 
 ```text
 crates/
 ├── server/
 │   └── src/
-│       ├── domain/
-│       │   └── mod.rs
-│       ├── application/
-│       │   └── mod.rs
-│       ├── ports/
-│       │   └── mod.rs
-│       ├── adapters/
-│       │   ├── mod.rs
-│       │   └── <http|cli|db|storage|external>/
-│       │       └── mod.rs
-│       ├── config.rs
-│       ├── error.rs
-│       └── main.rs
 ├── third-party-client/
 │   └── src/
 │       ├── lib.rs
 │       ├── client.rs
-│       ├── config.rs
-│       ├── error.rs
-│       ├── types.rs
-│       └── signing.rs
+│       ├── signing.rs
+│       ├── model.rs
+│       └── error.rs
 └── object-storage/
     └── src/
         ├── lib.rs
         ├── client.rs
         ├── config.rs
-        ├── error.rs
-        └── types.rs
+        └── error.rs
 ```
 
-- `third-party-client` 只负责第三方平台 API、签名、请求响应类型和底层错误。
-- 主 crate 的 `adapters/external` 负责把 `third-party-client` 适配成 `ports` 中定义的边界 trait。
-- `object-storage` 只负责文件系统或对象存储的上传、下载、删除、配置和底层错误。
-- 主 crate 的 `adapters/storage` 负责把 `object-storage` 适配成 `ports` 中定义的存储 trait。
-
-## 同时提供 CLI 和 Library 的独立 Crate
-
-```text
-src/
-├── main.rs
-├── lib.rs
-├── cli.rs
-├── commands/
-│   └── mod.rs
-├── core/
-│   └── mod.rs
-├── adapters/
-│   └── mod.rs
-└── error.rs
-```
-
-- `main.rs` 是 CLI 入口，安装 `color-eyre`、解析 `clap` 参数并调用库逻辑。
-- `lib.rs` 是库入口，暴露可复用能力。
-- `cli.rs` 和 `commands/` 只服务 CLI。
-- `core/` 放可复用核心逻辑。
-- `adapters/` 放该 crate 自己需要的 IO 实现。
+- capability crate 只负责自身协议和能力，不知道主业务流程，也不依赖主业务 crate。
+- 主服务通过 adapter 把 capability crate 接回对应 port。
+- 文件变长本身不足以拆 crate；依赖隔离、所有权、稳定 API、独立测试或构建形态必须至少有一项明确收益。

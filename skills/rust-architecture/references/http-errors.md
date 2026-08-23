@@ -1,40 +1,43 @@
 # REST HTTP Errors
 
-只在项目存在 REST HTTP adapter 和稳定客户端错误契约时使用本参考。
+用于所有受本规范管理且存在 REST HTTP adapter 的项目。新项目直接采用本契约；已有项目的最终目标也是本契约，但发现不兼容格式时先报告影响，只有当前任务明确包含错误契约迁移时才修改公开响应和客户端。
 
-## 状态码
+## 响应契约
 
-- 成功使用合适的 `2xx`。
-- 客户端输入、权限、资源不存在和状态冲突等可预期错误使用对应 `4xx`。
-- 服务端内部错误使用 `5xx`，不向客户端暴露内部错误详情。
-
-## 稳定错误码
-
-响应 body 使用稳定的 `SCREAMING_SNAKE_CASE` 错误码和必要上下文字段：
+所有 HTTP 错误使用统一 envelope：
 
 ```json
 {
-  "code": "PROBLEM_NOT_FOUND",
-  "problem_id": "123"
+  "error": {
+    "code": "PROBLEM_NOT_FOUND",
+    "params": {
+      "problemId": "123"
+    }
+  },
+  "requestId": "019..."
 }
 ```
 
-客户端使用 `code` 查找文案模板；服务端记录可排障的详细错误。
+- `error.code` 是稳定的 `SCREAMING_SNAKE_CASE` 客户端契约，不复用异常文本。
+- `error.params` 始终是 JSON object；没有参数时返回 `{}`。字段使用项目 JSON 命名约定，未定义时使用 `camelCase`。
+- `requestId` 是本次请求的 opaque correlation ID，不包含用户信息、错误详情或其他敏感数据。
+- 不在 envelope 中增加面向用户的已翻译 `message`；客户端使用 `code + params` 查找本地化模板。
 
-需要多语言客户端文案时，在项目根目录按语言维护资源：
+## Request ID
 
-```text
-locales/
-  zh-CN/
-    errors.json
-  en-US/
-    errors.json
-```
+- HTTP 入口为每个请求生成 request ID，或只透传经过校验的可信网关值；未获得可信值时必须生成新值。
+- 所有错误响应都返回 `requestId`，包括 `4xx` 和 `5xx`。
+- 结构化日志使用同一个 request ID，使客户端报告可以关联入口、数据库和下游调用日志。
+- 分布式追踪可以另有 `traceId`；不要把 request ID 当作身份、权限、幂等键或安全 token。
 
-`errors.json` 直接使用错误码作为 key：
+## 状态与错误映射
 
-```json
-{
-  "PROBLEM_NOT_FOUND": "题目 {problem_id} 不存在"
-}
-```
+- 成功使用语义合适的 `2xx`，不套错误 envelope。
+- 输入无效、认证、权限、资源不存在、并发或状态冲突等可预期错误使用对应 `4xx` 和稳定业务错误码。
+- 未知内部故障统一映射为稳定的内部错误码和 `5xx`，详细 source、数据库错误、堆栈和第三方响应只记录在服务端。
+- domain/application 错误在 HTTP adapter 映射为状态码和客户端错误码；不得让 HTTP 类型或状态码进入 domain。
+- 同一稳定 `code` 不随内部实现变化改变含义；需要不兼容调整时按公开 API 迁移处理。
+
+## 本地化
+
+客户端维护错误码到文案模板的映射，并使用 `params` 插值。语言资源位置服从项目已有 i18n 结构；本规范不强制根 `locales/` 目录。服务端日志应记录可排障上下文，但不得把内部详情复制到客户端参数中。

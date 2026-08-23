@@ -1,72 +1,58 @@
 ---
 name: rust-architecture
-description: Rust 项目架构规范技能。用于设计、创建或调整 Rust CLI、小工具、library crate、后端服务、复杂应用、workspace crate 拆分、domain/application/ports/adapters 四层边界、错误处理和测试结构。
+description: Rust 项目架构技能。用于规划、创建、审查或重构 Rust CLI、library、后端服务与 workspace 的模块和 crate 边界、依赖方向、错误与测试结构；普通局部实现修改且不涉及架构边界时不要自动扩展为整体重构。
 ---
 
 # Rust Architecture
 
-用于规划和维护 Rust 项目结构。除固定技术词外，使用中文说明；按项目复杂度选择最小够用的结构，不为模板完整性创建空目录。
+用于维护最小够用、边界清晰且能随业务增长的 Rust 结构。除固定技术词外使用中文说明；先服从项目已有的合理约定，不为模板完整性创建空目录，也不借架构调整修改任务范围外的代码。
 
-需要具体目录树示例时，读取 [layouts](./references/layouts.md)。
+## 工作方式
 
-## 架构概念
+1. 先读取 workspace、`Cargo.toml`、入口、现有模块、公开 API、测试和项目规范，判断当前任务是局部实现、模块调整、crate 拆分还是新项目设计。
+2. 找出本次变化所属的业务能力、聚合或用例，以及它允许依赖的方向；不要先按技术名创建目录再寻找内容填入。
+3. 选择能完整承载当前需求的最小结构。已有巨型文件时，不为一次局部修改重排无关代码；但不得把新的独立职责继续追加进去，应先抽取本次涉及的能力。
+4. 需要选择或调整目录结构时读取 [layouts](./references/layouts.md)。后端服务或复杂应用必须读取 [backend design](./references/backend-design.md)。新增或重组测试时读取 [testing](./references/testing.md)。存在 REST HTTP adapter 时读取 [HTTP errors](./references/http-errors.md)。
 
-复杂应用只使用四个核心概念：`domain`、`application`、`ports`、`adapters`。
+## 顶层边界
 
-- `domain`：纯业务核心，放实体、值对象、业务规则、状态流转、领域事件和纯校验逻辑。不得依赖外部框架、数据库、网络、文件系统、CLI、HTTP 或第三方 SDK。
-- `application`：用例和流程编排，放应用服务、命令/查询对象、事务边界、权限/上下文检查、跨能力编排。可以依赖 `domain` 和 `ports`，不得直接依赖具体外部实现。顶层目录使用 `application`，不要用 `services` 或 `system` 作为层名；确实需要 service 组织形式时，放在 `application` 内部模块。
-- `ports`：由 `application` 拥有的外部能力边界 trait，例如数据库访问、对象存储、第三方服务、通知发送、时间、ID 生成、事务管理等。不要为普通 helper、纯内部函数或没有边界意义的逻辑建立 trait；只有多个入口确实需要稳定用例接口时才增加 inbound port。
-- `adapters`：外部世界的接入和实现。进入系统的 adapter 包括 HTTP 和 CLI；系统调用外部的 adapter 包括数据库、文件系统/对象存储、第三方服务等。`adapters` 负责实现 `ports`、转换外部类型、做错误映射和完成具体 IO。
+后端服务使用 `domain`、`application`、`ports`、`adapters` 表达四类顶层依赖边界，而不是四个单文件或四个万能模块。每层继续按真实业务能力、聚合或用例拆分；具体职责和依赖规则见 [backend design](./references/backend-design.md)。
 
-## Adapter 目录
+- `domain`：业务状态、规则、不变量和领域错误。
+- `application`：用例、授权、事务意图和跨能力编排。
+- `ports`：由核心调用方需要定义的外部能力边界。
+- `adapters`：HTTP、CLI、数据库、存储和第三方系统等具体接入或实现。
+- `main.rs` 是 composition root，只初始化配置、日志和运行时，组装 adapters 与 application，并启动入口。
 
-只在项目确实使用对应能力时创建 adapter 目录，不创建空目录。
+不得创建代表整个服务的 God repository、God application façade 或全局 `contracts` 类型桶。`mod.rs`、`lib.rs` 和 `main.rs` 默认只放模块声明、受控 re-export、公开 API 或组装代码，不持续堆积业务实现。
 
-- `adapters/http`：HTTP 入口 adapter。
-- `adapters/cli`：CLI 入口 adapter，所有 CLI 使用 `clap`。
-- `adapters/db`：数据库 adapter。
-- `adapters/storage`：文件系统或对象存储 adapter。
-- `adapters/external`：第三方服务 adapter。
+## 模块增长
+
+按“内聚函数 → 单文件模块 → 目录模块 → 同 crate 多个业务模块 → capability crate → 独立服务”逐级演进，不因文件变长直接跳到拆 crate，也不机械地一类型一文件。
+
+- 按共同不变量和共同变化原因保持内聚；同时出现多个可独立变化的业务能力、用例组或外部能力时拆分。
+- 手写 Rust 文件接近或超过 500 行时必须审查职责、公开项数量和变化原因；超过 800 行时必须拆分，或在架构文档或变更说明中记录其仍保持单一职责的具体理由。
+- 自动生成且不手工维护的文件可以超过阈值，但必须能明确识别生成来源，不得把手写逻辑混入生成文件。
+- 入口模块只做索引和组装。不要用 crate 级 `allow(clippy::too_many_lines)` 掩盖设计问题；必要例外缩小到具体 item 并说明原因。
 
 ## 结构选择
 
-- 简单 CLI 或小工具：优先使用 `main.rs`、`cli.rs`、`core.rs`、`error.rs`。`main.rs` 只安装 `color-eyre`、解析 CLI、调用 `core` 入口；`cli.rs` 使用 `clap`；`core.rs` 放核心执行逻辑和纯业务逻辑；`error.rs` 使用 `thiserror`。不需要 `lib.rs`，除非同时要作为 library 复用。
-- 稍复杂 CLI 或小工具：使用 `main.rs`、`cli.rs`、`commands/`、`core/`、`adapters/`、`error.rs`。`commands/` 放不同命令入口，`adapters/` 放文件系统、网络、时间、外部命令等 IO 实现。
-- 普通 library crate：使用 `lib.rs`、`error.rs`、`types.rs`，按需添加 `config.rs`、`client.rs`。`lib.rs` 控制 public API，不塞大量实现；`types.rs` 只放少量内聚类型，增长后按领域拆分。library crate 不把 `color-eyre` 作为公共错误类型，并在 `Cargo.toml` 声明支持的 `rust-version`。
-- 后端服务或复杂应用：使用 `domain/`、`application/`、`ports/`、`adapters/`、`config.rs`、`error.rs`、`main.rs`。`main.rs` 负责组装 adapters、application 和配置。
+- 简单 CLI 或小工具：使用 `clap`，入口安装 `color-eyre`、解析参数并调用核心入口；业务错误需要调用方匹配时使用 `thiserror`。纯逻辑和 IO 开始独立变化后再拆 `commands`、业务模块和 adapters。
+- 普通 library crate：由 `lib.rs` 控制最小 public API，使用 `thiserror` 定义可匹配错误，不把 `color-eyre` 暴露为公共错误；声明支持的 `rust-version`。少量内聚类型可以同文件，增长后按领域命名拆分，避免长期使用泛化 `types.rs`。
+- 后端服务或复杂应用：使用四类顶层边界，并在层内按业务能力拆分；`main.rs` 只做组装。需要被集成测试、辅助 binary 或其他 crate 复用时增加 `lib.rs`。
+- 同时提供 CLI 和 library：`main.rs` 只负责 `clap`、`color-eyre` 和调用库入口，可复用能力留在 library 模块。
 
-## Crate 拆分
+## Crate 与公开 API
 
-当 `adapters` 中某些能力边界稳定、通用、可独立测试、依赖隔离价值高、未来可能复用时，可以提取成独立 crate。
+- 只有能力边界稳定、依赖隔离或独立测试价值明确、所有权清晰，或构建形态要求独立时才拆 crate；未来可能复用不能单独作为理由。proc macro 必须放在独立 proc-macro crate。
+- capability crate 不套完整四层目录，按实际能力使用清晰命名的模块；拆出的 crate 不依赖主业务 crate，也不知道主业务流程。
+- 明确 public API，默认保持最小可见性；不要为了测试把内部实现改成 `pub`。修改公开类型、错误、feature 或 MSRV 时检查 SemVer 和下游兼容性。
+- feature 优先表达用户可选择的能力或后端。具体实现名确实构成公开选择时可以使用实现型名称，不为隐藏依赖细节制造难懂别名。
 
-- 适合拆分的能力包括第三方 API client、对象存储 client、通知 client、签名/验签、文件导入导出、验证码、proc macro 等。
-- 拆出去的 crate 不依赖主 crate，不知道主业务流程。主 crate 通过 `adapters` 把它接回 `ports` 中定义的边界 trait。
-- 普通 capability crate 不套完整四层架构，保持 `lib.rs`、`client.rs`、`config.rs`、`error.rs`、`types.rs` 等清晰边界；需要签名就加 `signing.rs`，需要 provider 分发就加 `provider.rs`。
-- 如果独立 crate 本身需要 CLI 功能，使用 `main.rs` + `lib.rs` 结构：CLI 入口安装 `color-eyre`、解析 `clap` 参数并调用库逻辑，`lib.rs` 暴露可复用能力。
+## 错误与验证
 
-## 错误处理
-
-- 需要调用方匹配错误分支的 crate 使用 `thiserror` 定义结构化错误；极小型二进制可以只在顶层使用 `color-eyre`，不要为了形式创建没有语义的错误枚举。
-- `color-eyre` 只用于应用入口、CLI、server startup 和顶层错误报告，不作为 library crate 的公共错误类型。
-- 项目存在 REST HTTP adapter 时读取 [HTTP errors](./references/http-errors.md)；非 REST、没有客户端错误码契约或不需要多语言时不要套用对应规则。
-
-## Library API
-
-- 明确 public API，默认保持最小可见性；不要为了测试把内部实现改成 `pub`。
-- 使用 feature 管理可选依赖和可选能力；feature 名表达能力，不表达具体依赖实现。
-- 修改公开类型、错误、feature 或 MSRV 时检查 SemVer 和下游兼容性。
-
-## 格式化与 CI
-
-- 本地修改后优先只检查涉及 crate：`cargo fmt -p <package>`、`cargo clippy -p <package> --all-targets --all-features -- -D warnings` 和 `cargo test -p <package> --all-features`。
-- CI 默认运行 workspace 级 fmt、clippy 和 test，验证跨 crate 集成；项目规模导致成本不可接受时，必须另有可靠的受影响范围计算和定期全量检查。
-
-## 测试规则
-
-- 单元测试优先写在当前模块所在文件内，验证单个函数、模块、`domain` 规则、`application` 分支、错误路径和 adapter 映射逻辑。
-- 模块内单元测试存在 trait 边界时可用 `mockall`；`mockall` 属性加在 `ports` 的 trait 上，例如 `#[cfg_attr(test, mockall::automock)]`。不要手写 `mock_xxx.rs` 放到 `ports` 里。
-- 集成测试写在 `tests/` 目录下，每个文件对应一个明确业务流程、公开 API 或主要能力，文件名表达业务含义，例如 `order_flow.rs`、`callback_flow.rs`、`parser_roundtrip.rs`、`cli_check.rs`、`client_request.rs`。
-- 集成测试用于验证公开 API、模块协作、真实 adapter 或近真实环境。数据库、文件系统等关键依赖尽量使用真实或临时隔离环境；第三方服务使用 sandbox、mock server 或本地 fake service，不打生产环境。
-- `tests/` 集成测试不能依赖 `#[cfg(test)]` 生成的 `Mock*`。优先使用 fake adapter、in-memory adapter 或 mock server；确实需要复用测试工具时，使用显式 feature-gated `test-support`，不要默认把 mock 作为公共 API 暴露。
-- 测试函数在有多步 fallible 操作时优先返回 `Result`；简单断言测试可以直接使用 `assert!`、`assert_eq!` 或 `assert_ne!`。
-- 只写有效测试，不写只验证 mock 配置、getter/setter 或框架默认行为的低价值测试。
+- `color-eyre` 只用于 binary 入口、CLI、server startup 和顶层错误报告，不作为 library 公共错误，也不替代可匹配的业务错误。
+- 外部实现错误在 adapter 边界映射；domain 和 application 不暴露数据库、HTTP 或第三方 SDK 错误类型。
+- 本地修改后优先检查涉及 crate：`cargo fmt -p <package> -- --check`、`cargo clippy -p <package> --all-targets -- -D warnings` 和 `cargo test -p <package>`。
+- 同时检查本次涉及的 feature 组合。只有项目明确保证所有 feature 可同时启用时才使用 `--all-features`；互斥 feature 使用项目声明的 feature matrix。
+- CI 默认验证 workspace 级 fmt、clippy 和 test。成本不可接受时必须有可靠的受影响范围计算，并定期执行全量检查。
