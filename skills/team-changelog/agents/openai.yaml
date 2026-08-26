@@ -1,4 +1,0 @@
-interface:
-  display_name: "Team Changelog"
-  short_description: "Tag-only release notes from commit ranges"
-  default_prompt: "Use $team-changelog to prepare release notes and update CHANGELOG.md before tagging."

@@ -174,14 +174,20 @@ def validate_copy_assets() -> None:
 
 def validate_protocols() -> None:
     project = (SKILLS / "project-workflow/references/main-agent-flow.md").read_text(encoding="utf-8")
-    team = (SKILLS / "team-project-workflow/references/main-agent-flow.md").read_text(encoding="utf-8")
+    implementation = (
+        SKILLS / "project-workflow/references/implementation-subagent-flow.md"
+    ).read_text(encoding="utf-8")
+    task_format = (SKILLS / "project-workflow/references/task-format.md").read_text(encoding="utf-8")
     if "switch --detach main" not in project:
         fail("project-workflow does not reset new tasks to main")
-    if "merge --no-ff <task-id>" not in team:
-        fail("team-project-workflow does not merge completed tasks to develop")
-    for name, content in (("project-workflow", project), ("team-project-workflow", team)):
-        if "可用 agent slot" not in content:
-            fail(f"{name} does not batch subagents by available slots")
+    if "git -C main merge --no-ff <task-id>" not in project:
+        fail("project-workflow does not merge completed tasks to main")
+    if "可用 agent slot" not in project:
+        fail("project-workflow does not batch subagents by available slots")
+    if "git merge --ff-only <task-id>" not in implementation:
+        fail("project-workflow cannot refresh a project branch after review")
+    if "依次追加 `-2`、`-3`" not in task_format:
+        fail("project-workflow does not resolve project worktree name collisions")
 
 
 def git(repository: Path, *args: str, expect_success: bool = True) -> subprocess.CompletedProcess[str]:
@@ -212,38 +218,45 @@ def validate_git_protocols() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
 
-        standalone = root / "standalone"
-        standalone_develop = root / "standalone-develop"
-        initialize_repository(standalone)
-        git(standalone, "worktree", "add", "--detach", str(standalone_develop), "main")
-        git(standalone_develop, "switch", "-c", "task-a")
-        write(standalone_develop / "task-a.txt")
-        git(standalone_develop, "add", "task-a.txt")
-        git(standalone_develop, "commit", "-m", "task a")
-        git(standalone_develop, "switch", "--detach", "main")
-        git(standalone_develop, "switch", "-c", "task-b")
-        ancestry = git(
-            standalone_develop,
-            "merge-base",
-            "--is-ancestor",
-            "task-a",
-            "task-b",
-            expect_success=False,
-        )
-        if ancestry.returncode != 1:
-            fail("standalone workflow task-b was not based directly on main")
+        project = root / "project"
+        integration = root / "project-develop"
+        project_worktree = root / "project-app"
+        initialize_repository(project)
+        git(project, "worktree", "add", "--detach", str(integration), "main")
+        git(integration, "switch", "-c", "task-a")
 
-        team = root / "team"
-        team_develop = root / "team-develop"
-        initialize_repository(team)
-        git(team, "worktree", "add", "-b", "develop", str(team_develop), "main")
-        git(team_develop, "switch", "-c", "task-a")
-        write(team_develop / "task-a.txt")
-        git(team_develop, "add", "task-a.txt")
-        git(team_develop, "commit", "-m", "task a")
-        git(team_develop, "switch", "develop")
-        git(team_develop, "merge", "--no-ff", "task-a", "-m", "merge task a")
-        git(team_develop, "merge-base", "--is-ancestor", "task-a", "develop")
+        write(integration / ".gitignore", ".skills\n")
+        git(integration, "add", ".gitignore")
+        git(integration, "commit", "-m", "prepare task a")
+        git(integration, "worktree", "add", "--detach", str(project_worktree), "task-a")
+        write(project_worktree / ".skills", "project-docs\n")
+        if git(project_worktree, "status", "--porcelain").stdout:
+            fail("project-workflow .skills file is not ignored")
+
+        git(project_worktree, "switch", "-c", "workflow/task-a/app")
+        write(project_worktree / "apps/app.txt")
+        git(project_worktree, "add", "apps/app.txt")
+        git(project_worktree, "commit", "-m", "implement app")
+        git(integration, "merge", "workflow/task-a/app")
+
+        write(integration / "root.txt")
+        git(integration, "add", "root.txt")
+        git(integration, "commit", "-m", "integrate task a")
+        git(project_worktree, "merge-base", "--is-ancestor", "HEAD", "task-a")
+        git(project_worktree, "merge", "--ff-only", "task-a")
+        git(project_worktree, "merge-base", "--is-ancestor", "task-a", "HEAD")
+
+        write(project_worktree / "apps/fix.txt")
+        git(project_worktree, "add", "apps/fix.txt")
+        git(project_worktree, "commit", "-m", "fix app review")
+        git(integration, "merge", "workflow/task-a/app")
+
+        git(project, "merge", "--no-ff", "task-a", "-m", "merge task a")
+        git(project, "merge-base", "--is-ancestor", "task-a", "main")
+
+        git(integration, "switch", "--detach", "main")
+        git(integration, "switch", "-c", "task-b")
+        git(integration, "merge-base", "--is-ancestor", "task-a", "task-b")
 
 
 def main() -> None:

@@ -1,6 +1,6 @@
 ---
 name: project-workflow
-description: 本地 monorepo 多项目任务编排技能。仅在用户明确要求使用 project-workflow 时使用。
+description: 以本地 main 分支为基线和最终集成目标，使用独立 worktree、implementation subagent 和 review subagent 编排 monorepo 多项目任务。仅在用户明确要求使用 project-workflow 时使用。
 ---
 
 # Project Workflow
@@ -17,10 +17,10 @@ description: 本地 monorepo 多项目任务编排技能。仅在用户明确要
 
 ## 角色
 
-- main agent：拆分任务、维护根记录、准备 worktree、分批分派 subagent、merge 项目分支到 `develop/` 的 `<task-id>` 分支、最终验收并交付任务分支。
+- main agent：拆分任务、维护根记录、准备 worktree、分批分派 subagent、merge 项目分支到 `develop/` 的 `<task-id>` 分支、最终验收并将任务分支 merge 回本地 `main`。
 - implementation subagent：只在指定 `project-worktree` 内实现、自测、更新项目任务记录，并提交项目分支 commit。
 - review subagent：只审查 `develop/` 当前 `<task-id>` 分支状态，输出 review findings，不直接修改文件。
 
-执行命令时如缺少项目依赖，在当前职责允许的工作目录内自行安装后继续。
+执行命令时如缺少项目依赖，可以在当前职责允许的工作目录内安装；安装产生的 tracked 修改仍须符合 `Allowed Paths`，否则返回 main agent 扩展授权或处理。
 
 本 skill 中的 commit 统一遵守 [commit](./references/commit.md)；同时使用其他 skill 时，不继承其他 skill 的 commit 格式或 commit 前置检查。

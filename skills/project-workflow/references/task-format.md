@@ -4,8 +4,8 @@
 
 - `<task-id>`：任务包标识，小写字母、数字和 `-`；已存在时追加 `-2`、`-3`。
 - `<project-path>`：monorepo 内真实项目路径，例如 `apps/backend`。
-- `<project-worktree>`：由 `<project-path>` 去掉结尾 `/`，把 `/` 替换为 `-` 得到；例如 `apps/backend` -> `apps-backend`
-- `Allowed Paths`：仅用于 `.workflow/<task-id>/<project-worktree>/task.md`；必须包含 `<project-path>`，额外可写路径必须由 main agent 显式列出，未列出的路径不得修改。
+- `<project-worktree>`：默认由 `<project-path>` 去掉结尾 `/`，把 `/` 替换为 `-` 得到；例如 `apps/backend` -> `apps-backend`。按 `.workflow/.projects` 顺序分配；如果名称已被前面的项目占用，依次追加 `-2`、`-3` 直到唯一。
+- `Allowed Paths`：仅用于 `.workflow/<task-id>/<project-worktree>/task.md`；每一项必须是规范化的 worktree 相对路径，不得是绝对路径，不得包含值为 `.` 或 `..` 的路径组件，也不得逃出 worktree。`.github`、`Cargo.toml` 等名称中的 `.` 不受限制。必须包含 `<project-path>`；额外可写路径必须由 main agent 显式列出，未列出的路径不得修改。
 
 ## Task 模板
 

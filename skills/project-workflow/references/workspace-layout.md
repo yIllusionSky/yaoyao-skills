@@ -7,7 +7,7 @@
 workspace 根目录必须是用户确认的专用编排目录，可以包含 `AGENTS.md`、隐藏配置等编排控制文件，以及：
 
 - `main/`：主基线 worktree。
-- `develop/`：集成 worktree 目录，当前分支是 `<task-id>`。
+- `develop/`：集成 worktree 目录，当前分支是 `<task-id>`；目录名不表示存在 Git `develop` 分支。
 - `<project-worktree>/`：项目 implementation subagent 使用的独立 worktree。
 
 workspace 根目录禁止直接创建 monorepo 项目路径或其一级父目录，例如：
@@ -24,7 +24,7 @@ workspace 根目录禁止直接创建 monorepo 项目路径或其一级父目录
 - `<project-path>` 永远是 worktree 内的相对路径，例如 `apps/web`、`services/api`。
 - main agent 操作项目结构时，`<project-path>` 对应 `develop/<project-path>`。
 - implementation subagent 操作项目代码时，`<project-path>` 对应 `<project-worktree>/<project-path>`。
-- `<project-worktree>` 永远是 workspace 根下的 worktree 目录名，由 `<project-path>` 去掉结尾 `/`，把 `/` 替换为 `-` 得到；例如 `apps/web` -> `apps-web`。
+- `<project-worktree>` 永远是 workspace 根下的 worktree 目录名。默认由 `<project-path>` 去掉结尾 `/`，把 `/` 替换为 `-` 得到；发生名称碰撞时按 `task-format.md` 追加数字后缀。
 
 ## 正确布局示例
 

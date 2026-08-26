@@ -1,4 +1,4 @@
 interface:
   display_name: "Changelog"
-  short_description: "持续维护 Unreleased、版本区块和 release notes"
-  default_prompt: "使用 $changelog 维护 [Unreleased] 或准备一个新的 changelog 发布版本。"
+  short_description: "Tag 前归纳版本区块和 release notes"
+  default_prompt: "使用 $changelog 为新的稳定 tag 准备 changelog 版本区块和 release notes。"

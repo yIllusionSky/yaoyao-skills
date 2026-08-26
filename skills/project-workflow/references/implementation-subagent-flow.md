@@ -23,16 +23,18 @@ git rev-parse --show-toplevel
 
 只能修改：
 
-- 项目 `task.md` 中 `Allowed Paths` 列出的路径；其中必须包含 `<project-path>/`
+- 项目 `task.md` 中 `Allowed Paths` 列出的路径；其中必须包含 `<project-path>`
 - `.workflow/<task-id>/<project-worktree>/task.md`
 - `.workflow/<task-id>/<project-worktree>/log.md`
 
 未列入 `Allowed Paths` 的 package/crate/module 不能自行修改。发现任务需要修改未授权路径时，停止实现并返回 main agent 更新任务授权；不得自行创建额外 project worktree。
 
+安装依赖时也必须遵守 `Allowed Paths`。如果安装会修改未授权的根 lockfile、manifest 或其他 tracked 文件，停止并返回 main agent 扩展授权或代为处理。
+
 ## 工作流程
 
 1. 确认工作目录符合“工作目录”要求。
-2. 读取 main agent 下发的项目 `task.md`。
+2. 读取 main agent 下发的项目 `task.md`，确认每个 `Allowed Paths` 都符合 `task-format.md` 的规范化相对路径要求；存在无效路径时停止并返回 main agent。
 3. 确认当前 worktree 状态：
 
 ```bash
@@ -59,11 +61,20 @@ git switch -c workflow/<task-id>/<project-worktree>
 git switch workflow/<task-id>/<project-worktree>
 ```
 
-切换已有分支后确认 `<task-id>` 是其祖先；不是时停止并返回 main agent，不在错误基线上继续实现：
+切换已有分支后确认 `<task-id>` 是其祖先：
 
 ```bash
 git merge-base --is-ancestor <task-id> HEAD
 ```
+
+如果检查失败，但当前项目分支已经是 `<task-id>` 的祖先，说明项目改动已集成且现在是 review 后继续修复；使用 fast-forward 更新到最新任务基线：
+
+```bash
+git merge-base --is-ancestor HEAD <task-id>
+git merge --ff-only <task-id>
+```
+
+两项祖先检查都失败时，分支已经产生无法解释的分叉，停止并返回 main agent，不在错误基线上继续实现。
 
 6. 在自己的 `project-worktree` 中，只修改 `Allowed Paths` 和对应 workflow 记录；实现完成后，如本次变更影响当前子项目入口、职责、功能行为、运行方式、手动测试方式或配置，使用 `project-docs` 技能更新当前子项目长期文档；不得在 workspace 根创建或修改 `apps/`、`packages/`、`crates/` 等 `<project-path>` 父目录。
 7. 运行必要自测，根据结果更新 `.workflow/<task-id>/<project-worktree>/log.md` 和 `task.md`。

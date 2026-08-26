@@ -25,8 +25,7 @@ description: 生成或审查 branch、commit、pull request、issue 和 tag 内�
 
 - 默认目标分支为仓库约定的基线；没有其他约定时使用 `main`。
 - 创建 PR 前检查工作区状态、实际 diff、测试结果和需要同步的长期文档。
-- 项目安装 `changelog` 时，检查本次值得发布的最终变化是否已归入 `[Unreleased]`。
-- 项目安装 `team-changelog` 时，commit 和 PR 阶段不修改 changelog。
+- commit 和 PR 阶段不调用 `changelog`，不修改 `CHANGELOG.md`。
 - 需要格式时读取 [pull request](./references/pull_request.md)。
 
 ## Issue
@@ -39,9 +38,9 @@ description: 生成或审查 branch、commit、pull request、issue 和 tag 内�
 ## Tag
 
 - 只创建严格匹配 `vX.Y.Z` 的轻量 tag，不创建 annotated tag。
-- 项目安装 `changelog` 时，先使用它审计 `[Unreleased]` 并发布版本区块。
-- 项目安装 `team-changelog` 时，先使用它从上一个稳定 semver tag 到当前 `HEAD` 归纳版本区块。
-- 两者均未安装时，不自行修改 changelog；先报告缺少发布说明来源。
+- 项目安装 `changelog` 时，先使用它从上一个稳定 semver tag 到当前 `HEAD` 归纳版本区块和 release notes。
+- 未安装 `changelog` 时，不自行修改 changelog；停止并报告缺少发布说明来源。
+- 提交 changelog 变更后再创建 tag。
 - changelog 版本标题统一使用 `[X.Y.Z] - YYYY-MM-DD`。
 - tag push 后由 release workflow 从对应版本区块生成 release notes。
 - 需要命令参考时读取 [tag](./references/tag.md)。

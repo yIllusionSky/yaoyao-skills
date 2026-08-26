@@ -11,14 +11,10 @@
 
 - `git-workflow`: 规范 branch、commit、PR、issue 和 tag。
 - `github-actions`: 规范 GitHub Actions CI、app / Docker / Tauri 的 tag release workflow，并提供可复制 assets 和复制脚本。
-- `team-changelog`: 只在 tag/release 前根据 commit 区间整理 `CHANGELOG.md` 和 release notes，避免 commit/PR 阶段冲突。
-- `changelog`: 持续维护 `[Unreleased]`，并在 tag 前审计和发布版本区块。
+- `changelog`: 只在 tag/release 前根据稳定 semver tag 间的最终变化整理 `CHANGELOG.md` 版本区块和 release notes。
 - `rust-architecture`: 规范 Rust CLI、library、后端服务和 workspace 的模块与 crate 边界、四层依赖、增长控制、错误契约和测试结构。
 - `project-docs`: 规范长期项目文档，包括根 README、子项目 README、架构文档、功能说明、手动测试和运行维护文档。
-- `project-workflow`: 编排 workspace 布局、`.workflow/.projects` 显式项目拆分文件、`.workflow/<task-id>/` 本地任务记录、`develop/` 集成 worktree 目录、项目级 implementation subagent、review subagent、主集成和总体验收闭环。
-- `team-project-workflow`: 在真实 `develop` 分支上执行同类多项目编排，并在验收后合并任务分支回 `develop`。
-
-`changelog` 与 `team-changelog` 是互斥安装的两种 changelog 模式；`project-workflow` 与 `team-project-workflow` 也是互斥安装的两种任务编排模式。
+- `project-workflow`: 以本地 `main` 为基线，编排 `.workflow` 任务记录、`develop/` 集成 worktree、implementation subagent、review subagent，并在验收后将任务分支合并回 `main`。
 
 ## 项目目标
 
