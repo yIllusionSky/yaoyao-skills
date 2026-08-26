@@ -52,7 +52,6 @@
 ## 工具链与仓库命令
 
 - 仓库不包含 `rust-toolchain.toml` 或 `rust-toolchain`。本地直接使用当前 Rust 版本，CI 和 Docker 使用 `stable`。
-- `Cargo.toml` 的 `rust-version` 只表示最低支持版本，不会切换本地 Rust。
 - Bun 版本只在根 `package.json` 的 `packageManager` 中声明一次，所有 workspace 共用。
 - 根脚本只负责编排 workspace，不容纳业务实现；单个应用仍保留可独立执行的本地 check、test 和 build 命令。
 
