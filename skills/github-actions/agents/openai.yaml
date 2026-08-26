@@ -1,4 +1,4 @@
 interface:
   display_name: "GitHub Actions"
-  short_description: "Rust CI、tag release 和 Docker 部署 workflow"
-  default_prompt: "使用 $github-actions 为现有 Rust 项目配置 CI 或 tag release workflow。"
+  short_description: "Rust、Bun monorepo CI、tag release 和 Docker workflow"
+  default_prompt: "使用 $github-actions 为现有 Rust 项目或 TypeScript + Rust monorepo 配置 CI 与 release workflow。"

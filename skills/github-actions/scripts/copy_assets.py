@@ -25,12 +25,16 @@ class Operation:
 
 WORKFLOWS = {
     "ci": "ci.yml",
+    "monorepo-ci": "monorepo-ci.yml",
     "app": "app-release.yml",
     "tauri": "tauri-release.yml",
     "docker": "docker-release.yml",
 }
 
 BINARY_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+TOOLCHAIN_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+ -]*$")
+EXACT_BUN_PATTERN = re.compile(r"^bun@\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$")
+MONOREPO_SCRIPTS = ("lint", "typecheck", "test", "build")
 
 
 def require_files(target: Path, paths: list[str]) -> None:
@@ -47,6 +51,68 @@ def require_binary_name(option: str, value: str | None) -> str:
             f"{option} must contain only ASCII letters, digits, '-' or '_': {value!r}",
         )
     return value
+
+
+def require_toolchain(value: object, source: str) -> str:
+    if (
+        not isinstance(value, str)
+        or value != value.strip()
+        or not TOOLCHAIN_PATTERN.fullmatch(value)
+    ):
+        raise SystemExit(f"Invalid Rust toolchain in {source}: {value!r}")
+    return value
+
+
+def toolchain_from_file(path: Path) -> str:
+    text = path.read_text(encoding="utf-8").strip()
+    if not text:
+        raise SystemExit(f"Rust toolchain file is empty: {path.name}")
+    if path.suffix == ".toml" or text.startswith("["):
+        manifest = tomllib.loads(text)
+        toolchain = manifest.get("toolchain")
+        channel = toolchain.get("channel") if isinstance(toolchain, dict) else None
+        return require_toolchain(channel, path.name)
+    if len(text.splitlines()) != 1:
+        raise SystemExit(f"Legacy Rust toolchain file must contain one channel: {path.name}")
+    return require_toolchain(text, path.name)
+
+
+def resolve_rust_toolchain(target: Path, explicit: str | None) -> str:
+    if explicit is not None:
+        return require_toolchain(explicit, "--rust-toolchain")
+    for name in ("rust-toolchain.toml", "rust-toolchain"):
+        path = target / name
+        if path.is_file():
+            return toolchain_from_file(path)
+    return "stable"
+
+
+def require_monorepo(target: Path) -> None:
+    manifest = tomllib.loads((target / "Cargo.toml").read_text(encoding="utf-8"))
+    if not isinstance(manifest.get("workspace"), dict):
+        raise SystemExit("Cargo.toml must define a workspace")
+
+    package = json.loads((target / "package.json").read_text(encoding="utf-8"))
+    if package.get("private") is not True:
+        raise SystemExit("package.json must set private to true")
+    package_manager = package.get("packageManager")
+    if not isinstance(package_manager, str) or not EXACT_BUN_PATTERN.fullmatch(package_manager):
+        raise SystemExit("package.json packageManager must use an exact bun@X.Y.Z version")
+    workspaces = package.get("workspaces")
+    if not isinstance(workspaces, list) or not workspaces or not all(
+        isinstance(item, str) and item.strip() for item in workspaces
+    ):
+        raise SystemExit("package.json must define a non-empty workspaces array")
+    scripts = package.get("scripts")
+    missing_scripts = [
+        name
+        for name in MONOREPO_SCRIPTS
+        if not isinstance(scripts, dict)
+        or not isinstance(scripts.get(name), str)
+        or not scripts[name].strip()
+    ]
+    if missing_scripts:
+        raise SystemExit("package.json must define script: " + missing_scripts[0])
 
 
 def dependency_major(value: object) -> int | None:
@@ -199,6 +265,13 @@ def build_operations(args: argparse.Namespace, target: Path) -> list[Operation]:
 
     if args.kind in {"ci", "app"}:
         require_files(target, ["Cargo.toml"])
+    elif args.kind == "monorepo-ci":
+        require_files(target, ["Cargo.toml", "package.json", "bun.lock"])
+        require_monorepo(target)
+        replacements["__RUST_TOOLCHAIN__"] = resolve_rust_toolchain(
+            target,
+            args.rust_toolchain,
+        )
     elif args.kind == "tauri":
         require_files(target, ["package.json", "bun.lock", "src-tauri/Cargo.toml"])
         require_tauri_two(target)
@@ -215,6 +288,9 @@ def build_operations(args: argparse.Namespace, target: Path) -> list[Operation]:
         replacements["__APP_BIN__"] = require_binary_name("--app-bin", args.app_bin)
     elif args.app_bin:
         raise SystemExit("--app-bin is only valid for app assets")
+
+    if args.kind != "monorepo-ci" and args.rust_toolchain:
+        raise SystemExit("--rust-toolchain is only valid for monorepo-ci assets")
 
     if args.kind == "docker":
         server_bin = require_binary_name("--server-bin", args.server_bin)
@@ -279,6 +355,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target", default=".", type=Path)
     parser.add_argument("--app-bin")
     parser.add_argument("--server-bin")
+    parser.add_argument("--rust-toolchain")
     parser.add_argument("--with-client", action="store_true")
     parser.add_argument("--force", action="store_true")
     return parser.parse_args()

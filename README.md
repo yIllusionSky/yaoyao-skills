@@ -10,9 +10,9 @@
 ## Skills
 
 - `git-workflow`: 规范 branch、commit、PR、issue 和 tag。
-- `github-actions`: 规范 GitHub Actions CI、app、Tauri 2 和 Docker 的 tag release workflow，并为独立 Rust server 与可选 SvelteKit adapter-node client 提供可复制 assets 和复制脚本。
+- `github-actions`: 规范 GitHub Actions CI、app、Tauri 2 和 Docker 的 tag release workflow，并为 Rust 项目、TypeScript + Rust monorepo、独立 server 与可选 SvelteKit adapter-node client 提供可复制 assets 和复制脚本。
 - `changelog`: 只在 tag/release 前根据稳定 semver tag 间的最终变化整理 `CHANGELOG.md` 版本区块和 release notes。
-- `rust-architecture`: 规范 Rust CLI、library、后端服务和 workspace 的模块与 crate 边界、四层依赖、增长控制、错误契约和测试结构。
+- `rust-architecture`: 规范 Rust CLI、library、后端服务、Cargo workspace 与按业务组织的 TypeScript + Rust monorepo，包括模块与 crate 边界、四层依赖、跨语言契约、增长控制、错误和测试结构。
 - `project-docs`: 规范长期项目文档，包括根 README、子项目 README、架构文档、功能说明、手动测试和运行维护文档。
 - `project-workflow`: 以本地 `main` 为基线，编排 `.workflow` 任务记录、`develop/` 集成 worktree、implementation subagent、review subagent，并在验收后将任务分支合并回 `main`。
 

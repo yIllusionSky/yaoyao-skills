@@ -1,4 +1,4 @@
 interface:
   display_name: "Rust Architecture"
-  short_description: "Rust 模块与 crate 边界、四层架构、错误和测试规范"
-  default_prompt: "使用 $rust-architecture 规划或审查 Rust 项目的模块边界、依赖方向和增长结构。"
+  short_description: "Rust 与 TypeScript monorepo、模块和 crate 边界规范"
+  default_prompt: "使用 $rust-architecture 规划或审查 Rust 项目及混合 monorepo 的业务边界、依赖方向和增长结构。"

@@ -150,6 +150,25 @@ def run_copy(*args: str, expect_success: bool = True) -> subprocess.CompletedPro
     return result
 
 
+MONOREPO_PACKAGE = (
+    '{"private":true,"packageManager":"bun@1.3.14",'
+    '"workspaces":["apps/*/*","packages/*"],'
+    '"scripts":{"lint":"bun --version","typecheck":"bun --version",'
+    '"test":"bun --version","build":"bun --version"}}\n'
+)
+
+
+def write_monorepo(root: Path, package: str = MONOREPO_PACKAGE) -> None:
+    write(root / "Cargo.toml", '[workspace]\nmembers = []\nresolver = "3"\n')
+    write(root / "package.json", package)
+    write(root / "bun.lock")
+
+
+def assert_no_github(root: Path, message: str) -> None:
+    if (root / ".github").exists():
+        fail(message)
+
+
 def validate_copy_assets() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -164,6 +183,115 @@ def validate_copy_assets() -> None:
         run_copy("ci", "--target", str(ci), "--force")
         if (ci / ".github/workflows/ci.yml").read_text(encoding="utf-8") == "stale\n":
             fail("--force did not replace an existing asset")
+
+        monorepo = root / "monorepo"
+        write_monorepo(monorepo)
+        run_copy("monorepo-ci", "--target", str(monorepo))
+        monorepo_workflow = (
+            monorepo / ".github/workflows/monorepo-ci.yml"
+        ).read_text(encoding="utf-8")
+        if 'toolchain: "stable"' not in monorepo_workflow:
+            fail("monorepo CI did not use the default Rust toolchain")
+        if "__RUST_TOOLCHAIN__" in monorepo_workflow or "bun ci" not in monorepo_workflow:
+            fail("monorepo CI asset was not fully rendered")
+        run_copy("monorepo-ci", "--target", str(monorepo), expect_success=False)
+        (monorepo / ".github/workflows/monorepo-ci.yml").write_text(
+            "stale\n",
+            encoding="utf-8",
+        )
+        run_copy("monorepo-ci", "--target", str(monorepo), "--force")
+        if (
+            monorepo / ".github/workflows/monorepo-ci.yml"
+        ).read_text(encoding="utf-8") == "stale\n":
+            fail("monorepo CI --force did not replace an existing asset")
+
+        explicit_toolchain = root / "monorepo-explicit-toolchain"
+        write_monorepo(explicit_toolchain)
+        write(
+            explicit_toolchain / "rust-toolchain.toml",
+            '[toolchain]\nchannel = "1.92.0"\n',
+        )
+        run_copy(
+            "monorepo-ci",
+            "--target",
+            str(explicit_toolchain),
+            "--rust-toolchain",
+            "nightly-2026-08-01",
+        )
+        explicit_workflow = (
+            explicit_toolchain / ".github/workflows/monorepo-ci.yml"
+        ).read_text(encoding="utf-8")
+        if 'toolchain: "nightly-2026-08-01"' not in explicit_workflow:
+            fail("explicit Rust toolchain did not take precedence")
+
+        toml_toolchain = root / "monorepo-toml-toolchain"
+        write_monorepo(toml_toolchain)
+        write(toml_toolchain / "rust-toolchain.toml", '[toolchain]\nchannel = "1.92.0"\n')
+        run_copy("monorepo-ci", "--target", str(toml_toolchain))
+        toml_workflow = (
+            toml_toolchain / ".github/workflows/monorepo-ci.yml"
+        ).read_text(encoding="utf-8")
+        if 'toolchain: "1.92.0"' not in toml_workflow:
+            fail("rust-toolchain.toml channel was not used")
+
+        legacy_toolchain = root / "monorepo-legacy-toolchain"
+        write_monorepo(legacy_toolchain)
+        write(legacy_toolchain / "rust-toolchain", "beta\n")
+        run_copy("monorepo-ci", "--target", str(legacy_toolchain))
+        legacy_workflow = (
+            legacy_toolchain / ".github/workflows/monorepo-ci.yml"
+        ).read_text(encoding="utf-8")
+        if 'toolchain: "beta"' not in legacy_workflow:
+            fail("legacy rust-toolchain channel was not used")
+
+        invalid_monorepos = {
+            "cargo-package": (
+                '[package]\nname = "demo"\nversion = "0.1.0"\n',
+                MONOREPO_PACKAGE,
+                True,
+            ),
+            "missing-workspaces": (
+                '[workspace]\nmembers = []\n',
+                MONOREPO_PACKAGE.replace(
+                    ',"workspaces":["apps/*/*","packages/*"]',
+                    "",
+                ),
+                True,
+            ),
+            "missing-package-manager": (
+                '[workspace]\nmembers = []\n',
+                MONOREPO_PACKAGE.replace(',"packageManager":"bun@1.3.14"', ""),
+                True,
+            ),
+            "non-private-package": (
+                '[workspace]\nmembers = []\n',
+                MONOREPO_PACKAGE.replace('"private":true', '"private":false'),
+                True,
+            ),
+            "ranged-bun-version": (
+                '[workspace]\nmembers = []\n',
+                MONOREPO_PACKAGE.replace("bun@1.3.14", "bun@^1.3.14"),
+                True,
+            ),
+            "missing-script": (
+                '[workspace]\nmembers = []\n',
+                MONOREPO_PACKAGE.replace(',"build":"bun --version"', ""),
+                True,
+            ),
+            "missing-lock": (
+                '[workspace]\nmembers = []\n',
+                MONOREPO_PACKAGE,
+                False,
+            ),
+        }
+        for name, (cargo, package, has_lock) in invalid_monorepos.items():
+            invalid = root / name
+            write(invalid / "Cargo.toml", cargo)
+            write(invalid / "package.json", package)
+            if has_lock:
+                write(invalid / "bun.lock")
+            run_copy("monorepo-ci", "--target", str(invalid), expect_success=False)
+            assert_no_github(invalid, f"invalid monorepo produced output: {name}")
 
         app = root / "app"
         write(app / "Cargo.toml")

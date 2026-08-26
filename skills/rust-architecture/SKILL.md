@@ -1,6 +1,6 @@
 ---
 name: rust-architecture
-description: Rust 项目架构技能。用于规划、创建、审查或重构 Rust CLI、library、后端服务与 workspace 的模块和 crate 边界、依赖方向、错误与测试结构；普通局部实现修改且不涉及架构边界时不要自动扩展为整体重构。
+description: Rust 项目架构技能。用于规划、创建、审查或重构 Rust CLI、library、后端服务、Cargo workspace，以及按业务组织的 TypeScript + Rust monorepo；普通局部实现修改且不涉及架构边界时不要自动扩展为整体重构。
 ---
 
 # Rust Architecture
@@ -9,10 +9,10 @@ description: Rust 项目架构技能。用于规划、创建、审查或重构 R
 
 ## 工作方式
 
-1. 先读取 workspace、`Cargo.toml`、入口、现有模块、公开 API、测试和项目规范，判断当前任务是局部实现、模块调整、crate 拆分还是新项目设计。
+1. 先读取 workspace、根清单、锁文件、入口、现有模块、公开 API、测试和项目规范，判断当前任务是局部实现、模块调整、crate 拆分、monorepo 边界调整还是新项目设计。
 2. 找出本次变化所属的业务能力、聚合或用例，以及它允许依赖的方向；不要先按技术名创建目录再寻找内容填入。
 3. 选择能完整承载当前需求的最小结构。已有巨型文件时，不为一次局部修改重排无关代码；但不得把新的独立职责继续追加进去，应先抽取本次涉及的能力。
-4. 需要选择或调整目录结构时读取 [layouts](./references/layouts.md)。后端服务或复杂应用必须读取 [backend design](./references/backend-design.md)。新增或重组测试时读取 [testing](./references/testing.md)。存在 REST HTTP adapter 时读取 [HTTP errors](./references/http-errors.md)。
+4. 需要选择或调整目录结构时读取 [layouts](./references/layouts.md)。同时存在 TypeScript 与 Rust workspace，或任务涉及 monorepo 边界、共享包、跨语言契约与 CI 时读取 [monorepo](./references/monorepo.md)。后端服务或复杂应用必须读取 [backend design](./references/backend-design.md)。新增或重组测试时读取 [testing](./references/testing.md)。存在 REST HTTP adapter 时读取 [HTTP errors](./references/http-errors.md)。
 
 ## 顶层边界
 
@@ -41,6 +41,7 @@ description: Rust 项目架构技能。用于规划、创建、审查或重构 R
 - 普通 library crate：由 `lib.rs` 控制最小 public API，使用 `thiserror` 定义可匹配错误，不把 `color-eyre` 暴露为公共错误；声明支持的 `rust-version`。少量内聚类型可以同文件，增长后按领域命名拆分，避免长期使用泛化 `types.rs`。
 - 后端服务或复杂应用：使用四类顶层边界，并在层内按业务能力拆分；`main.rs` 只做组装。需要被集成测试、辅助 binary 或其他 crate 复用时增加 `lib.rs`。
 - 同时提供 CLI 和 library：`main.rs` 只负责 `clap`、`color-eyre` 和调用库入口，可复用能力留在 library 模块。
+- TypeScript + Rust monorepo：顶层先按业务能力组织可部署应用，再在业务内部选择语言和应用形态；只有真实跨业务复用的 TypeScript package 或 Rust crate 才进入全局共享区。具体布局、workspace、跨语言契约和 CI 规则见 [monorepo](./references/monorepo.md)。
 
 ## Crate 与公开 API
 
