@@ -1,0 +1,171 @@
+name: Monorepo Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: monorepo-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RUST_PACKAGE: "__RUST_PACKAGE__"
+  RUST_BIN: "__RUST_BIN__"
+  TYPESCRIPT_PACKAGE: "__TYPESCRIPT_PACKAGE__"
+  TYPESCRIPT_APP: "__TYPESCRIPT_APP__"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          lfs: true
+
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: stable
+
+      - name: Prepare release metadata
+        shell: python
+        run: |
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          if not re.fullmatch(r"v\d+\.\d+\.\d+", tag):
+              raise SystemExit(f"Release tag must match vX.Y.Z: {tag}")
+          version = tag.removeprefix("v")
+
+          changelog = Path("CHANGELOG.md")
+          if not changelog.is_file():
+              raise SystemExit("CHANGELOG.md not found")
+          text = changelog.read_text(encoding="utf-8")
+          heading = re.compile(
+              rf"^## \[{re.escape(version)}\] - \d{{4}}-\d{{2}}-\d{{2}}\s*$",
+              re.MULTILINE,
+          )
+          match = heading.search(text)
+          if not match:
+              raise SystemExit(f"CHANGELOG version section not found: [{version}]")
+          next_heading = re.search(r"^## \[.+?\]", text[match.end():], re.MULTILINE)
+          end = match.end() + next_heading.start() if next_heading else len(text)
+          notes = text[match.end():end].strip()
+          if not notes:
+              raise SystemExit(f"CHANGELOG version section is empty: [{version}]")
+          Path("RELEASE_NOTES.md").write_text(notes + "\n", encoding="utf-8")
+
+          cargo = json.loads(subprocess.check_output([
+              "cargo", "metadata", "--no-deps", "--format-version", "1",
+          ]))
+          rust_package = next(
+              (item for item in cargo["packages"] if item["name"] == os.environ["RUST_PACKAGE"]),
+              None,
+          )
+          if rust_package is None:
+              raise SystemExit(f"Rust package not found: {os.environ['RUST_PACKAGE']}")
+          if rust_package["version"] != version:
+              raise SystemExit(
+                  f"Rust package version must match release: {rust_package['version']} != {version}",
+              )
+
+          root = Path.cwd().resolve()
+          typescript_app = (root / os.environ["TYPESCRIPT_APP"]).resolve()
+          if not typescript_app.is_relative_to(root):
+              raise SystemExit("TypeScript app is outside the repository")
+          package_file = typescript_app / "package.json"
+          package = json.loads(package_file.read_text(encoding="utf-8"))
+          if package.get("name") != os.environ["TYPESCRIPT_PACKAGE"]:
+              raise SystemExit("TypeScript package name does not match release configuration")
+          if package.get("version") != version:
+              raise SystemExit(
+                  f"TypeScript package version must match release: {package.get('version')} != {version}",
+              )
+
+          project = os.environ["GITHUB_REPOSITORY"].rsplit("/", 1)[-1].lower()
+          image_pattern = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
+          rust_image = f"{project}-rust"
+          typescript_image = f"{project}-typescript"
+          if not image_pattern.fullmatch(rust_image):
+              raise SystemExit(f"Invalid Rust image name: {rust_image}")
+          if not image_pattern.fullmatch(typescript_image):
+              raise SystemExit(f"Invalid TypeScript image name: {typescript_image}")
+
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as stream:
+              stream.write(f"VERSION={version}\n")
+              stream.write(f"PROJECT_NAME={project}\n")
+              stream.write(f"RUST_IMAGE={rust_image}\n")
+              stream.write(f"TYPESCRIPT_IMAGE={typescript_image}\n")
+
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Build Rust image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: deploy/docker/rust.Dockerfile
+          push: false
+          load: true
+          tags: ${{ env.RUST_IMAGE }}:${{ env.VERSION }}
+          build-args: |
+            RUST_PACKAGE=${{ env.RUST_PACKAGE }}
+            RUST_BIN=${{ env.RUST_BIN }}
+          cache-from: type=gha,scope=monorepo-rust
+          cache-to: type=gha,scope=monorepo-rust,mode=max
+
+      - name: Build TypeScript image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: deploy/docker/typescript.Dockerfile
+          push: false
+          load: true
+          tags: ${{ env.TYPESCRIPT_IMAGE }}:${{ env.VERSION }}
+          build-args: |
+            TYPESCRIPT_PACKAGE=${{ env.TYPESCRIPT_PACKAGE }}
+            TYPESCRIPT_APP=${{ env.TYPESCRIPT_APP }}
+          secrets: |
+            npmrc=${{ secrets.NPMRC }}
+          cache-from: type=gha,scope=monorepo-typescript
+          cache-to: type=gha,scope=monorepo-typescript,mode=max
+
+      - name: Create release package
+        shell: bash
+        run: |
+          mkdir -p release/deploy/pingap/conf
+          docker save -o release/deploy/docker.tar \
+            "$RUST_IMAGE:$VERSION" \
+            "$TYPESCRIPT_IMAGE:$VERSION"
+          cp deploy/docker-compose.release.yaml release/deploy/docker-compose.yaml
+          cp pingap/conf/example.conf release/deploy/pingap/conf/
+          sed \
+            -e "s/^RUST_IMAGE=.*/RUST_IMAGE=$RUST_IMAGE/" \
+            -e "s/^RUST_TAG=.*/RUST_TAG=$VERSION/" \
+            -e "s/^TYPESCRIPT_IMAGE=.*/TYPESCRIPT_IMAGE=$TYPESCRIPT_IMAGE/" \
+            -e "s/^TYPESCRIPT_TAG=.*/TYPESCRIPT_TAG=$VERSION/" \
+            .env.example > release/deploy/.env
+          cp release/deploy/.env release/deploy/.env.example
+          tar -czf "release/$PROJECT_NAME-$VERSION.tar.gz" -C release/deploy .
+
+      - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
+          files: release/${{ env.PROJECT_NAME }}-${{ env.VERSION }}.tar.gz
+          fail_on_unmatched_files: true
+          draft: true
+          prerelease: false
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false

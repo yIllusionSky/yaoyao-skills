@@ -1,0 +1,48 @@
+services:
+  rust:
+    build:
+      context: .
+      dockerfile: deploy/docker/rust.Dockerfile
+      args:
+        RUST_PACKAGE: ${RUST_PACKAGE}
+        RUST_BIN: ${RUST_BIN}
+    image: ${RUST_IMAGE}:${RUST_TAG}
+    restart: unless-stopped
+    expose:
+      - "8080"
+
+  typescript:
+    build:
+      context: .
+      dockerfile: deploy/docker/typescript.Dockerfile
+      args:
+        TYPESCRIPT_PACKAGE: ${TYPESCRIPT_PACKAGE}
+        TYPESCRIPT_APP: ${TYPESCRIPT_APP}
+      secrets:
+        - npmrc
+    image: ${TYPESCRIPT_IMAGE}:${TYPESCRIPT_TAG}
+    restart: unless-stopped
+    depends_on:
+      - rust
+    expose:
+      - "3000"
+
+  pingap:
+    image: vicanso/pingap:0.13.4
+    restart: unless-stopped
+    depends_on:
+      - rust
+      - typescript
+    ports:
+      - "80:80"
+    volumes:
+      - ./pingap/conf/example.conf:/opt/pingap/conf/pingap.conf:ro
+    environment:
+      PINGAP_CONF: /opt/pingap/conf/pingap.conf
+    command:
+      - pingap
+      - --autoreload
+
+secrets:
+  npmrc:
+    file: ${NPMRC_PATH}

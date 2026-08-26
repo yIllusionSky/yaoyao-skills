@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+target
+release
+pingap_data
+.env
+.env.*
+.npmrc
+*.key
+*.pem
+*.p12
+*.crt

@@ -26,4 +26,8 @@ jobs:
         run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 
       - name: Validate workflows
-        run: actionlint .github/workflows/*.yml skills/github-actions/assets/*.yml
+        run: >-
+          actionlint
+          .github/workflows/*.yml
+          skills/github-actions/assets/*.yml
+          skills/github-actions/assets/monorepo/workflows/*.yml

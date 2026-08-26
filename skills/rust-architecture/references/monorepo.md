@@ -51,9 +51,9 @@
 
 ## 工具链与仓库命令
 
-- `rust-toolchain.toml` 与旧式 `rust-toolchain` 都是可选的项目配置，不是 monorepo 前置条件。已有配置时服从其中的 channel；没有时按项目 CI 约定选择，默认可使用 `stable`。
-- Cargo manifest 的 `rust-version` 表达 MSRV，不把它当作 CI toolchain pin。
-- Bun 版本以根 `package.json` 的精确 `packageManager` 为仓库来源，不在每个 workspace 重复声明。
+- 仓库不包含 `rust-toolchain.toml` 或 `rust-toolchain`。本地直接使用当前 Rust 版本，CI 和 Docker 使用 `stable`。
+- `Cargo.toml` 的 `rust-version` 只表示最低支持版本，不会切换本地 Rust。
+- Bun 版本只在根 `package.json` 的 `packageManager` 中声明一次，所有 workspace 共用。
 - 根脚本只负责编排 workspace，不容纳业务实现；单个应用仍保留可独立执行的本地 check、test 和 build 命令。
 
 ## CI 与发布
@@ -61,5 +61,5 @@
 - pull request 默认分别运行完整 Cargo workspace 与 Bun workspace 检查。Rust 执行 fmt、clippy、test；TypeScript 使用 `bun ci` 后执行根 `lint`、`typecheck`、`test`、`build` scripts。
 - 不默认对 Rust 使用 `--all-features`；先确认 feature 能同时启用，否则按项目声明的 feature matrix 验证。
 - 只有仓库具备可靠的 workspace 依赖图和变更范围计算时才执行 affected-only；同时保留定期或合并前全量验证，避免遗漏跨业务和跨语言契约影响。
-- 发布以可部署应用为单位。tag 或 workflow input 必须能唯一识别应用与版本；不要因为代码位于同一仓库就强制所有应用共用版本。
+- 第一版 release 可以沿用仓库统一 `vX.Y.Z`，但必须同时验证实际发布的 Rust 与 TypeScript package 版本；只有项目确定采用独立服务版本时才扩展 tag、changelog 和目标选择规则。
 - GitHub Actions asset 与复制规则由 `github-actions` 技能维护；架构设计只规定检查边界，不复制另一份 workflow 实现。

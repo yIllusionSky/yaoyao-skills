@@ -24,16 +24,22 @@ class Operation:
 
 
 WORKFLOWS = {
-    "ci": "ci.yml",
-    "monorepo-ci": "monorepo-ci.yml",
-    "app": "app-release.yml",
-    "tauri": "tauri-release.yml",
-    "docker": "docker-release.yml",
+    "ci": ("ci.yml", "ci.yml"),
+    "monorepo-ci": ("monorepo/workflows/ci.yml", "monorepo-ci.yml"),
+    "monorepo-release": (
+        "monorepo/workflows/release.yml",
+        "monorepo-release.yml",
+    ),
+    "app": ("app-release.yml", "app-release.yml"),
+    "tauri": ("tauri-release.yml", "tauri-release.yml"),
+    "docker": ("docker-release.yml", "docker-release.yml"),
 }
 
 BINARY_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
-TOOLCHAIN_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+ -]*$")
-EXACT_BUN_PATTERN = re.compile(r"^bun@\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$")
+EXACT_BUN_PATTERN = re.compile(r"^bun@\d+\.\d+\.\d+$")
+TYPESCRIPT_PACKAGE_PATTERN = re.compile(
+    r"^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$",
+)
 MONOREPO_SCRIPTS = ("lint", "typecheck", "test", "build")
 
 
@@ -53,41 +59,7 @@ def require_binary_name(option: str, value: str | None) -> str:
     return value
 
 
-def require_toolchain(value: object, source: str) -> str:
-    if (
-        not isinstance(value, str)
-        or value != value.strip()
-        or not TOOLCHAIN_PATTERN.fullmatch(value)
-    ):
-        raise SystemExit(f"Invalid Rust toolchain in {source}: {value!r}")
-    return value
-
-
-def toolchain_from_file(path: Path) -> str:
-    text = path.read_text(encoding="utf-8").strip()
-    if not text:
-        raise SystemExit(f"Rust toolchain file is empty: {path.name}")
-    if path.suffix == ".toml" or text.startswith("["):
-        manifest = tomllib.loads(text)
-        toolchain = manifest.get("toolchain")
-        channel = toolchain.get("channel") if isinstance(toolchain, dict) else None
-        return require_toolchain(channel, path.name)
-    if len(text.splitlines()) != 1:
-        raise SystemExit(f"Legacy Rust toolchain file must contain one channel: {path.name}")
-    return require_toolchain(text, path.name)
-
-
-def resolve_rust_toolchain(target: Path, explicit: str | None) -> str:
-    if explicit is not None:
-        return require_toolchain(explicit, "--rust-toolchain")
-    for name in ("rust-toolchain.toml", "rust-toolchain"):
-        path = target / name
-        if path.is_file():
-            return toolchain_from_file(path)
-    return "stable"
-
-
-def require_monorepo(target: Path) -> None:
+def require_monorepo(target: Path) -> tuple[str, list[str]]:
     manifest = tomllib.loads((target / "Cargo.toml").read_text(encoding="utf-8"))
     if not isinstance(manifest.get("workspace"), dict):
         raise SystemExit("Cargo.toml must define a workspace")
@@ -113,6 +85,141 @@ def require_monorepo(target: Path) -> None:
     ]
     if missing_scripts:
         raise SystemExit("package.json must define script: " + missing_scripts[0])
+    return package_manager.removeprefix("bun@"), workspaces
+
+
+def require_typescript_package(value: str | None) -> str:
+    if not value or not TYPESCRIPT_PACKAGE_PATTERN.fullmatch(value):
+        raise SystemExit(
+            "--typescript-package must be a lowercase Bun package name: " + repr(value),
+        )
+    return value
+
+
+def require_relative_directory(option: str, value: str | None, target: Path) -> str:
+    if not value:
+        raise SystemExit(f"{option} is required")
+    relative = Path(value)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise SystemExit(f"{option} must stay inside the target repository: {value!r}")
+    resolved = (target / relative).resolve()
+    if not resolved.is_relative_to(target.resolve()) or not resolved.is_dir():
+        raise SystemExit(f"{option} directory not found inside target: {value!r}")
+    return relative.as_posix()
+
+
+def expand_braces(pattern: str) -> list[str]:
+    """Expand the comma form of Bun workspace braces, including nested braces."""
+    opening = -1
+    escaped = False
+    for index, character in enumerate(pattern):
+        if escaped:
+            escaped = False
+            continue
+        if character == "\\":
+            escaped = True
+        elif character == "{":
+            opening = index
+            break
+    if opening < 0:
+        return [pattern]
+
+    depth = 0
+    closing = -1
+    for index in range(opening, len(pattern)):
+        character = pattern[index]
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth == 0:
+                closing = index
+                break
+    if closing < 0:
+        raise SystemExit("Invalid Bun workspace glob (unclosed brace): " + pattern)
+
+    body = pattern[opening + 1 : closing]
+    alternatives: list[str] = []
+    start = 0
+    depth = 0
+    for index, character in enumerate(body):
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+        elif character == "," and depth == 0:
+            alternatives.append(body[start:index])
+            start = index + 1
+    if not alternatives:
+        return [pattern]
+    alternatives.append(body[start:])
+
+    expanded: list[str] = []
+    prefix = pattern[:opening]
+    suffix = pattern[closing + 1 :]
+    for alternative in alternatives:
+        expanded.extend(expand_braces(prefix + alternative + suffix))
+    return expanded
+
+
+def workspace_package_directories(target: Path, workspaces: list[str]) -> set[Path]:
+    """Resolve workspace package directories using filesystem-aware glob semantics."""
+    included: set[Path] = set()
+    excluded: set[Path] = set()
+    target_root = target.resolve()
+
+    for raw_pattern in workspaces:
+        is_exclusion = raw_pattern.startswith("!")
+        pattern = raw_pattern.removeprefix("!").removeprefix("./").rstrip("/")
+        pattern_path = Path(pattern)
+        if not pattern or pattern_path.is_absolute() or ".." in pattern_path.parts:
+            raise SystemExit("Bun workspace glob must stay inside the repository: " + raw_pattern)
+
+        matches = excluded if is_exclusion else included
+        for expanded_pattern in expand_braces(pattern):
+            try:
+                candidates = target.glob(expanded_pattern)
+                for candidate in candidates:
+                    resolved = candidate.resolve()
+                    if (
+                        resolved.is_relative_to(target_root)
+                        and resolved.is_dir()
+                        and (resolved / "package.json").is_file()
+                    ):
+                        matches.add(resolved)
+            except ValueError as error:
+                raise SystemExit(
+                    f"Invalid Bun workspace glob {raw_pattern!r}: {error}",
+                ) from error
+
+    return included - excluded
+
+
+def require_typescript_app(
+    target: Path,
+    app: str | None,
+    package_name: str,
+    workspaces: list[str],
+) -> str:
+    relative = require_relative_directory("--typescript-app", app, target)
+    workspace_directories = workspace_package_directories(target, workspaces)
+    if (target / relative).resolve() not in workspace_directories:
+        raise SystemExit("TypeScript app is not included in root workspaces: " + relative)
+    package_file = target / relative / "package.json"
+    if not package_file.is_file():
+        raise SystemExit("TypeScript app package.json not found: " + relative)
+    package = json.loads(package_file.read_text(encoding="utf-8"))
+    if package.get("name") != package_name:
+        raise SystemExit("TypeScript app package name does not match --typescript-package")
+    scripts = package.get("scripts")
+    for name in ("build", "start"):
+        if (
+            not isinstance(scripts, dict)
+            or not isinstance(scripts.get(name), str)
+            or not scripts[name].strip()
+        ):
+            raise SystemExit(f"TypeScript app must define script: {name}")
+    return relative
 
 
 def dependency_major(value: object) -> int | None:
@@ -200,12 +307,63 @@ def workflow_operation(
     target: Path,
     replacements: dict[str, str],
 ) -> Operation:
-    name = WORKFLOWS[kind]
+    source, destination = WORKFLOWS[kind]
     return Operation(
-        ASSETS / name,
-        target / ".github" / "workflows" / name,
+        ASSETS / source,
+        target / ".github" / "workflows" / destination,
         replacements,
     )
+
+
+def monorepo_release_operations(
+    target: Path,
+    replacements: dict[str, str],
+) -> list[Operation]:
+    monorepo = ASSETS / "monorepo"
+    docker = monorepo / "docker"
+    return [
+        workflow_operation("monorepo-release", target, replacements),
+        Operation(
+            docker / "rust.Dockerfile",
+            target / "deploy" / "docker" / "rust.Dockerfile",
+            replacements,
+        ),
+        Operation(
+            docker / "rust.Dockerfile.dockerignore",
+            target / "deploy" / "docker" / "rust.Dockerfile.dockerignore",
+        ),
+        Operation(
+            docker / "typescript.Dockerfile",
+            target / "deploy" / "docker" / "typescript.Dockerfile",
+            replacements,
+        ),
+        Operation(
+            docker / "typescript.Dockerfile.dockerignore",
+            target / "deploy" / "docker" / "typescript.Dockerfile.dockerignore",
+        ),
+        Operation(
+            docker / "npmrc.example",
+            target / "deploy" / "docker" / "npmrc.example",
+        ),
+        Operation(
+            docker / "docker-compose.yaml",
+            target / "docker-compose.yaml",
+            replacements,
+        ),
+        Operation(
+            docker / "docker-compose.release.yaml",
+            target / "deploy" / "docker-compose.release.yaml",
+        ),
+        Operation(
+            docker / "pingap.conf",
+            target / "pingap" / "conf" / "example.conf",
+        ),
+        Operation(
+            docker / "env.example",
+            target / ".env.example",
+            replacements,
+        ),
+    ]
 
 
 def docker_operations(
@@ -268,9 +426,29 @@ def build_operations(args: argparse.Namespace, target: Path) -> list[Operation]:
     elif args.kind == "monorepo-ci":
         require_files(target, ["Cargo.toml", "package.json", "bun.lock"])
         require_monorepo(target)
-        replacements["__RUST_TOOLCHAIN__"] = resolve_rust_toolchain(
+    elif args.kind == "monorepo-release":
+        require_files(
             target,
-            args.rust_toolchain,
+            ["Cargo.toml", "Cargo.lock", "package.json", "bun.lock", "CHANGELOG.md"],
+        )
+        bun_version, workspaces = require_monorepo(target)
+        rust_package = require_binary_name("--rust-package", args.rust_package)
+        rust_bin = require_binary_name("--rust-bin", args.rust_bin)
+        typescript_package = require_typescript_package(args.typescript_package)
+        typescript_app = require_typescript_app(
+            target,
+            args.typescript_app,
+            typescript_package,
+            workspaces,
+        )
+        replacements.update(
+            {
+                "__RUST_PACKAGE__": rust_package,
+                "__RUST_BIN__": rust_bin,
+                "__TYPESCRIPT_PACKAGE__": typescript_package,
+                "__TYPESCRIPT_APP__": typescript_app,
+                "__BUN_VERSION__": bun_version,
+            },
         )
     elif args.kind == "tauri":
         require_files(target, ["package.json", "bun.lock", "src-tauri/Cargo.toml"])
@@ -289,8 +467,16 @@ def build_operations(args: argparse.Namespace, target: Path) -> list[Operation]:
     elif args.app_bin:
         raise SystemExit("--app-bin is only valid for app assets")
 
-    if args.kind != "monorepo-ci" and args.rust_toolchain:
-        raise SystemExit("--rust-toolchain is only valid for monorepo-ci assets")
+    if args.kind != "monorepo-release" and (
+        args.rust_package
+        or args.rust_bin
+        or args.typescript_package
+        or args.typescript_app
+    ):
+        raise SystemExit(
+            "--rust-package, --rust-bin, --typescript-package and --typescript-app "
+            "are only valid for monorepo-release assets",
+        )
 
     if args.kind == "docker":
         server_bin = require_binary_name("--server-bin", args.server_bin)
@@ -303,7 +489,10 @@ def build_operations(args: argparse.Namespace, target: Path) -> list[Operation]:
     elif args.server_bin or args.with_client:
         raise SystemExit("--server-bin and --with-client are only valid for docker assets")
 
-    operations = [workflow_operation(args.kind, target, replacements)]
+    if args.kind == "monorepo-release":
+        operations = monorepo_release_operations(target, replacements)
+    else:
+        operations = [workflow_operation(args.kind, target, replacements)]
     if args.kind == "docker":
         operations.extend(
             docker_operations(target, server_bin, args.with_client),
@@ -355,7 +544,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target", default=".", type=Path)
     parser.add_argument("--app-bin")
     parser.add_argument("--server-bin")
-    parser.add_argument("--rust-toolchain")
+    parser.add_argument("--rust-package")
+    parser.add_argument("--rust-bin")
+    parser.add_argument("--typescript-package")
+    parser.add_argument("--typescript-app")
     parser.add_argument("--with-client", action="store_true")
     parser.add_argument("--force", action="store_true")
     return parser.parse_args()

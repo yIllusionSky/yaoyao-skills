@@ -1,0 +1,1 @@
+# Set NPMRC_PATH to a private npmrc file when the build needs registry credentials.

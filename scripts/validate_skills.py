@@ -101,7 +101,7 @@ def validate_links() -> None:
 def validate_action_pins() -> None:
     workflow_files = [
         *sorted((ROOT / ".github" / "workflows").glob("*.yml")),
-        *sorted((SKILLS / "github-actions" / "assets").glob("*.yml")),
+        *sorted((SKILLS / "github-actions" / "assets").rglob("*.yml")),
     ]
     for workflow in workflow_files:
         text = workflow.read_text(encoding="utf-8")
@@ -121,12 +121,16 @@ def validate_action_pins() -> None:
 
 
 def validate_release_lifecycle() -> None:
-    for name in ("app-release.yml", "tauri-release.yml"):
-        workflow = SKILLS / "github-actions" / "assets" / name
+    release_workflows = (
+        SKILLS / "github-actions" / "assets" / "app-release.yml",
+        SKILLS / "github-actions" / "assets" / "tauri-release.yml",
+        SKILLS / "github-actions" / "assets" / "monorepo" / "workflows" / "release.yml",
+    )
+    for workflow in release_workflows:
         text = workflow.read_text(encoding="utf-8")
         if "draft: true" not in text:
             fail(f"release must be created as a draft: {workflow}")
-        if "publish-release:" not in text or 'gh release edit "$GITHUB_REF_NAME" --draft=false' not in text:
+        if 'gh release edit "$GITHUB_REF_NAME" --draft=false' not in text:
             fail(f"release is not published after assets succeed: {workflow}")
 
 
@@ -159,13 +163,44 @@ MONOREPO_PACKAGE = (
 
 
 def write_monorepo(root: Path, package: str = MONOREPO_PACKAGE) -> None:
-    write(root / "Cargo.toml", '[workspace]\nmembers = []\nresolver = "3"\n')
+    write(
+        root / "Cargo.toml",
+        '[workspace]\nmembers = ["apps/learning/api"]\nresolver = "3"\n',
+    )
+    write(root / "Cargo.lock")
+    write(
+        root / "apps/learning/api/Cargo.toml",
+        '[package]\nname = "learning-api"\nversion = "0.1.0"\nedition = "2024"\n',
+    )
     write(root / "package.json", package)
     write(root / "bun.lock")
+    write(
+        root / "apps/learning/web/package.json",
+        '{"name":"learning-web","version":"0.1.0",'
+        '"scripts":{"build":"bun build ./src/index.ts --outdir ./dist",'
+        '"start":"bun ./dist/index.js"}}\n',
+    )
+    write(
+        root / "packages/shared/package.json",
+        '{"name":"@example/shared","version":"0.1.0"}\n',
+    )
+    write(root / "CHANGELOG.md", "# Changelog\n\n## [0.1.0] - 2026-08-26\n")
 
 
 def assert_no_github(root: Path, message: str) -> None:
     if (root / ".github").exists():
+        fail(message)
+
+
+def assert_no_monorepo_release(root: Path, message: str) -> None:
+    generated = (
+        root / ".github",
+        root / "deploy",
+        root / "docker-compose.yaml",
+        root / "pingap",
+        root / ".env.example",
+    )
+    if any(path.exists() for path in generated):
         fail(message)
 
 
@@ -190,9 +225,9 @@ def validate_copy_assets() -> None:
         monorepo_workflow = (
             monorepo / ".github/workflows/monorepo-ci.yml"
         ).read_text(encoding="utf-8")
-        if 'toolchain: "stable"' not in monorepo_workflow:
+        if "toolchain: stable" not in monorepo_workflow:
             fail("monorepo CI did not use the default Rust toolchain")
-        if "__RUST_TOOLCHAIN__" in monorepo_workflow or "bun ci" not in monorepo_workflow:
+        if "rust-toolchain.toml" in monorepo_workflow or "bun ci" not in monorepo_workflow:
             fail("monorepo CI asset was not fully rendered")
         run_copy("monorepo-ci", "--target", str(monorepo), expect_success=False)
         (monorepo / ".github/workflows/monorepo-ci.yml").write_text(
@@ -205,44 +240,228 @@ def validate_copy_assets() -> None:
         ).read_text(encoding="utf-8") == "stale\n":
             fail("monorepo CI --force did not replace an existing asset")
 
-        explicit_toolchain = root / "monorepo-explicit-toolchain"
-        write_monorepo(explicit_toolchain)
-        write(
-            explicit_toolchain / "rust-toolchain.toml",
-            '[toolchain]\nchannel = "1.92.0"\n',
-        )
+        removed_toolchain_option = root / "monorepo-removed-toolchain-option"
+        write_monorepo(removed_toolchain_option)
         run_copy(
             "monorepo-ci",
             "--target",
-            str(explicit_toolchain),
+            str(removed_toolchain_option),
             "--rust-toolchain",
-            "nightly-2026-08-01",
+            "stable",
+            expect_success=False,
         )
-        explicit_workflow = (
-            explicit_toolchain / ".github/workflows/monorepo-ci.yml"
-        ).read_text(encoding="utf-8")
-        if 'toolchain: "nightly-2026-08-01"' not in explicit_workflow:
-            fail("explicit Rust toolchain did not take precedence")
+        assert_no_github(
+            removed_toolchain_option,
+            "removed Rust toolchain option produced monorepo CI output",
+        )
 
-        toml_toolchain = root / "monorepo-toml-toolchain"
-        write_monorepo(toml_toolchain)
-        write(toml_toolchain / "rust-toolchain.toml", '[toolchain]\nchannel = "1.92.0"\n')
-        run_copy("monorepo-ci", "--target", str(toml_toolchain))
-        toml_workflow = (
-            toml_toolchain / ".github/workflows/monorepo-ci.yml"
+        release = root / "monorepo-release"
+        write_monorepo(release)
+        run_copy(
+            "monorepo-release",
+            "--target", str(release),
+            "--rust-package", "learning-api",
+            "--rust-bin", "learning-api",
+            "--typescript-package", "learning-web",
+            "--typescript-app", "apps/learning/web",
+        )
+        release_outputs = (
+            release / ".github/workflows/monorepo-release.yml",
+            release / "deploy/docker/rust.Dockerfile",
+            release / "deploy/docker/rust.Dockerfile.dockerignore",
+            release / "deploy/docker/typescript.Dockerfile",
+            release / "deploy/docker/typescript.Dockerfile.dockerignore",
+            release / "deploy/docker/npmrc.example",
+            release / "deploy/docker-compose.release.yaml",
+            release / "docker-compose.yaml",
+            release / "pingap/conf/example.conf",
+            release / ".env.example",
+        )
+        if not all(path.is_file() for path in release_outputs):
+            fail("monorepo release assets were not all copied")
+        rendered = "\n".join(path.read_text(encoding="utf-8") for path in release_outputs)
+        for placeholder in (
+            "__RUST_PACKAGE__",
+            "__RUST_BIN__",
+            "__TYPESCRIPT_PACKAGE__",
+            "__TYPESCRIPT_APP__",
+            "__BUN_VERSION__",
+        ):
+            if placeholder in rendered:
+                fail(f"monorepo release placeholder was not replaced: {placeholder}")
+        if "oven/bun:1.3.14" not in rendered or "toolchain: stable" not in rendered:
+            fail("monorepo release did not pin its CI and container toolchains")
+        release_workflow = (
+            release / ".github/workflows/monorepo-release.yml"
         ).read_text(encoding="utf-8")
-        if 'toolchain: "1.92.0"' not in toml_workflow:
-            fail("rust-toolchain.toml channel was not used")
+        if (
+            "scope=monorepo-rust" not in release_workflow
+            or "scope=monorepo-typescript" not in release_workflow
+        ):
+            fail("monorepo release must keep Rust and TypeScript build caches separate")
+        if "npmrc=${{ secrets.NPMRC }}" not in release_workflow:
+            fail("monorepo TypeScript build does not mount the optional npmrc secret")
+        if "release/deploy/.env\n" not in release_workflow:
+            fail("monorepo release package is missing a Compose-ready .env")
+        rust_dockerfile = (
+            release / "deploy/docker/rust.Dockerfile"
+        ).read_text(encoding="utf-8")
+        if '--package "$RUST_PACKAGE" --bin "$RUST_BIN"' not in rust_dockerfile:
+            fail("cargo-chef cache is not scoped to the selected Rust target")
+        typescript_dockerfile = (
+            release / "deploy/docker/typescript.Dockerfile"
+        ).read_text(encoding="utf-8")
+        dependency_markers = (
+            "COPY bun.lock bunfig.tom[l] ./",
+            "COPY --parents ./**/package.json ./",
+            'bun ci --filter "$TYPESCRIPT_PACKAGE" --ignore-scripts',
+            "COPY . .",
+            'bun ci --filter "$TYPESCRIPT_PACKAGE"\n',
+        )
+        try:
+            dependency_positions = [
+                typescript_dockerfile.index(marker) for marker in dependency_markers
+            ]
+        except ValueError as error:
+            fail(f"TypeScript dependency cache layer is incomplete: {error}")
+        if dependency_positions != sorted(dependency_positions):
+            fail("TypeScript source is copied before its reusable dependency layer")
+        if typescript_dockerfile.count("id=npmrc") != 2:
+            fail("TypeScript installs do not use optional BuildKit npmrc secrets")
+        if "apps/learning/web/package.json" in typescript_dockerfile:
+            fail("TypeScript Dockerfile froze the workspace inventory at copy time")
+        if (
+            "COPY --from=builder /app /app" in typescript_dockerfile
+            or "/app/${TYPESCRIPT_APP}/dist ./dist" not in typescript_dockerfile
+        ):
+            fail("TypeScript runtime image contains the builder workspace")
+        for name in (
+            "rust.Dockerfile.dockerignore",
+            "typescript.Dockerfile.dockerignore",
+        ):
+            dockerignore = (release / "deploy/docker" / name).read_text(encoding="utf-8")
+            for pattern in (
+                ".env",
+                ".env.*",
+                ".npmrc",
+                "*.key",
+                "*.pem",
+                "*.p12",
+                "*.crt",
+            ):
+                if pattern not in dockerignore.splitlines():
+                    fail(f"monorepo Docker context does not exclude {pattern}: {name}")
+        compose = (release / "docker-compose.yaml").read_text(encoding="utf-8")
+        if compose.count("ports:") != 1 or compose.count("expose:") != 2:
+            fail("monorepo compose must expose only Pingap publicly")
+        if '"443:443"' in compose:
+            fail("monorepo compose unexpectedly configures TLS")
+        if "secrets:\n  npmrc:" not in compose or "file: ${NPMRC_PATH}" not in compose:
+            fail("monorepo Compose does not provide the npmrc build secret")
+        env_example = (release / ".env.example").read_text(encoding="utf-8")
+        if "NPMRC_PATH=deploy/docker/npmrc.example" not in env_example:
+            fail("monorepo environment example does not configure the npmrc placeholder")
+        release_compose = (
+            release / "deploy/docker-compose.release.yaml"
+        ).read_text(encoding="utf-8")
+        if "build:" in release_compose:
+            fail("monorepo release compose must not depend on source builds")
+        pingap = (release / "pingap/conf/example.conf").read_text(encoding="utf-8")
+        if 'path = "/api"' not in pingap or 'path = "/"' not in pingap:
+            fail("monorepo Pingap routes are incomplete")
+        run_copy(
+            "monorepo-release",
+            "--target", str(release),
+            "--rust-package", "learning-api",
+            "--rust-bin", "learning-api",
+            "--typescript-package", "learning-web",
+            "--typescript-app", "apps/learning/web",
+            expect_success=False,
+        )
 
-        legacy_toolchain = root / "monorepo-legacy-toolchain"
-        write_monorepo(legacy_toolchain)
-        write(legacy_toolchain / "rust-toolchain", "beta\n")
-        run_copy("monorepo-ci", "--target", str(legacy_toolchain))
-        legacy_workflow = (
-            legacy_toolchain / ".github/workflows/monorepo-ci.yml"
-        ).read_text(encoding="utf-8")
-        if 'toolchain: "beta"' not in legacy_workflow:
-            fail("legacy rust-toolchain channel was not used")
+        invalid_app = root / "monorepo-invalid-app"
+        write_monorepo(invalid_app)
+        run_copy(
+            "monorepo-release",
+            "--target", str(invalid_app),
+            "--rust-package", "learning-api",
+            "--rust-bin", "learning-api",
+            "--typescript-package", "learning-web",
+            "--typescript-app", "../outside",
+            expect_success=False,
+        )
+        assert_no_monorepo_release(
+            invalid_app,
+            "invalid TypeScript app path produced partial monorepo release output",
+        )
+
+        non_workspace_app = root / "monorepo-non-workspace-app"
+        write_monorepo(
+            non_workspace_app,
+            MONOREPO_PACKAGE.replace(
+                '"workspaces":["apps/*/*","packages/*"]',
+                '"workspaces":["packages/*"]',
+            ),
+        )
+        run_copy(
+            "monorepo-release",
+            "--target", str(non_workspace_app),
+            "--rust-package", "learning-api",
+            "--rust-bin", "learning-api",
+            "--typescript-package", "learning-web",
+            "--typescript-app", "apps/learning/web",
+            expect_success=False,
+        )
+        assert_no_monorepo_release(
+            non_workspace_app,
+            "TypeScript app outside root workspaces produced release output",
+        )
+
+        excluded_workspace_app = root / "monorepo-excluded-workspace-app"
+        write_monorepo(
+            excluded_workspace_app,
+            MONOREPO_PACKAGE.replace(
+                '"workspaces":["apps/*/*","packages/*"]',
+                '"workspaces":["apps/*/*","!apps/learning/*","packages/*"]',
+            ),
+        )
+        run_copy(
+            "monorepo-release",
+            "--target", str(excluded_workspace_app),
+            "--rust-package", "learning-api",
+            "--rust-bin", "learning-api",
+            "--typescript-package", "learning-web",
+            "--typescript-app", "apps/learning/web",
+            expect_success=False,
+        )
+        assert_no_monorepo_release(
+            excluded_workspace_app,
+            "excluded TypeScript workspace produced release output",
+        )
+
+        compatible_workspace_patterns = {
+            "recursive-workspace": '["apps/**","packages/*"]',
+            "brace-workspace": '["{apps,packages}/**"]',
+        }
+        for name, workspaces in compatible_workspace_patterns.items():
+            compatible = root / name
+            write_monorepo(
+                compatible,
+                MONOREPO_PACKAGE.replace(
+                    '["apps/*/*","packages/*"]',
+                    workspaces,
+                ),
+            )
+            run_copy(
+                "monorepo-release",
+                "--target", str(compatible),
+                "--rust-package", "learning-api",
+                "--rust-bin", "learning-api",
+                "--typescript-package", "learning-web",
+                "--typescript-app", "apps/learning/web",
+            )
+            if not (compatible / "deploy/docker/typescript.Dockerfile").is_file():
+                fail(f"valid Bun {name} glob did not produce release output")
 
         invalid_monorepos = {
             "cargo-package": (
@@ -271,6 +490,11 @@ def validate_copy_assets() -> None:
             "ranged-bun-version": (
                 '[workspace]\nmembers = []\n',
                 MONOREPO_PACKAGE.replace("bun@1.3.14", "bun@^1.3.14"),
+                True,
+            ),
+            "build-metadata-bun-version": (
+                '[workspace]\nmembers = []\n',
+                MONOREPO_PACKAGE.replace("bun@1.3.14", "bun@1.3.14+local"),
                 True,
             ),
             "missing-script": (
