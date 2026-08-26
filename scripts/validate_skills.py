@@ -14,7 +14,26 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / "skills"
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 LINK_PATTERN = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
-USES_PATTERN = re.compile(r"^\s*(?:-\s*)?uses:\s*([^@\s]+)@([^\s#]+)", re.MULTILINE)
+USES_PATTERN = re.compile(
+    r"^\s*(?:-\s*)?uses:\s*([^@\s]+)@([^\s#]+)(?:\s+#\s*(\S+))?",
+    re.MULTILINE,
+)
+
+ACTION_PINS = {
+    "Swatinem/rust-cache": ("6323deb102c322ba6fcbdcafc7e3dddab59af2b6", "v2.9.2"),
+    "actions/checkout": ("3d3c42e5aac5ba805825da76410c181273ba90b1", "v7.0.1"),
+    "actions/setup-go": ("924ae3a1cded613372ab5595356fb5720e22ba16", "v6.5.0"),
+    "docker/build-push-action": ("53b7df96c91f9c12dcc8a07bcb9ccacbed38856a", "v7.3.0"),
+    "docker/setup-buildx-action": ("bb05f3f5519dd87d3ba754cc423b652a5edd6d2c", "v4.2.0"),
+    "dtolnay/rust-toolchain": ("4be7066ada62dd38de10e7b70166bc74ed198c30", "stable"),
+    "oven-sh/setup-bun": ("0c5077e51419868618aeaa5fe8019c62421857d6", "v2.2.0"),
+    "softprops/action-gh-release": ("3d0d9888cb7fd7b750713d6e236d1fcb99157228", "v3.0.2"),
+    "taiki-e/upload-rust-binary-action": (
+        "f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6",
+        "v1.30.2",
+    ),
+    "tauri-apps/tauri-action": ("1deb371b0cd8bd54025b384f1cd735e725c4060f", "v1.0.0"),
+}
 
 
 def fail(message: str) -> None:
@@ -86,11 +105,29 @@ def validate_action_pins() -> None:
     ]
     for workflow in workflow_files:
         text = workflow.read_text(encoding="utf-8")
-        for owner, reference in USES_PATTERN.findall(text):
+        for owner, reference, annotation in USES_PATTERN.findall(text):
             if owner.startswith("./"):
                 continue
             if not re.fullmatch(r"[0-9a-f]{40}", reference):
                 fail(f"action is not pinned to a full SHA in {workflow}: {owner}@{reference}")
+            expected = ACTION_PINS.get(owner)
+            if expected is None:
+                fail(f"action pin has not been audited in {workflow}: {owner}")
+            if (reference, annotation) != expected:
+                fail(
+                    f"action pin or annotation does not match audited commit in {workflow}: "
+                    f"{owner}@{reference} # {annotation}",
+                )
+
+
+def validate_release_lifecycle() -> None:
+    for name in ("app-release.yml", "tauri-release.yml"):
+        workflow = SKILLS / "github-actions" / "assets" / name
+        text = workflow.read_text(encoding="utf-8")
+        if "draft: true" not in text:
+            fail(f"release must be created as a draft: {workflow}")
+        if "publish-release:" not in text or 'gh release edit "$GITHUB_REF_NAME" --draft=false' not in text:
+            fail(f"release is not published after assets succeed: {workflow}")
 
 
 def write(path: Path, content: str = "placeholder\n") -> None:
@@ -136,23 +173,47 @@ def validate_copy_assets() -> None:
             fail("app workflow placeholder was not replaced")
 
         tauri = root / "tauri"
-        write(tauri / "package.json", "{}\n")
+        write(
+            tauri / "package.json",
+            '{"devDependencies":{"@tauri-apps/cli":"^2.0.0"}}\n',
+        )
         write(tauri / "bun.lock")
-        write(tauri / "src-tauri/Cargo.toml")
+        write(
+            tauri / "src-tauri/Cargo.toml",
+            '[package]\nname = "demo"\nversion = "0.1.0"\n\n'
+            '[dependencies]\ntauri = "2"\n',
+        )
         run_copy("tauri", "--target", str(tauri))
 
         server = root / "server-only"
-        write(server / "server/Cargo.toml")
+        write(
+            server / "server/Cargo.toml",
+            '[package]\nname = "api"\nversion = "0.1.0"\n',
+        )
+        write(server / "server/Cargo.lock")
         run_copy("docker", "--target", str(server), "--server-bin", "api")
         server_compose = (server / "docker-compose.yaml").read_text(encoding="utf-8")
         if "  client:" in server_compose or (server / "client/Dockerfile").exists():
             fail("server-only overlay unexpectedly contains client assets")
         if "__SERVER_BIN__" in (server / "server/Dockerfile").read_text(encoding="utf-8"):
             fail("server binary placeholder was not replaced")
+        if not (server / "server/.dockerignore").is_file():
+            fail("server Docker overlay is missing .dockerignore")
+        server_env = (server / ".env.example").read_text(encoding="utf-8")
+        if "SERVER_BIN=api" not in server_env or "__SERVER_BIN__" in server_env:
+            fail("server binary was not written to .env.example")
 
         fullstack = root / "fullstack"
-        write(fullstack / "server/Cargo.toml")
-        write(fullstack / "client/package.json", '{"name":"client","version":"0.1.0"}\n')
+        write(
+            fullstack / "server/Cargo.toml",
+            '[package]\nname = "api"\nversion = "0.1.0"\n',
+        )
+        write(fullstack / "server/Cargo.lock")
+        write(
+            fullstack / "client/package.json",
+            '{"name":"client","version":"0.1.0","scripts":{"build":"vite build"},'
+            '"devDependencies":{"@sveltejs/adapter-node":"^5.0.0"}}\n',
+        )
         write(fullstack / "client/bun.lock")
         run_copy(
             "docker",
@@ -164,6 +225,93 @@ def validate_copy_assets() -> None:
         )
         if not (fullstack / "client/Dockerfile").is_file():
             fail("fullstack overlay is missing client Dockerfile")
+        if not (fullstack / "client/.dockerignore").is_file():
+            fail("fullstack Docker overlay is missing client .dockerignore")
+
+        invalid_bin = root / "invalid-bin"
+        write(invalid_bin / "Cargo.toml")
+        run_copy(
+            "app",
+            "--target",
+            str(invalid_bin),
+            "--app-bin",
+            "bad\nname",
+            expect_success=False,
+        )
+        if (invalid_bin / ".github").exists():
+            fail("invalid binary name produced partial output")
+
+        tauri_one = root / "tauri-one"
+        write(
+            tauri_one / "package.json",
+            '{"devDependencies":{"@tauri-apps/cli":"^1.0.0"}}\n',
+        )
+        write(tauri_one / "bun.lock")
+        write(
+            tauri_one / "src-tauri/Cargo.toml",
+            '[package]\nname = "demo"\nversion = "0.1.0"\n\n'
+            '[dependencies]\ntauri = "1"\n',
+        )
+        run_copy("tauri", "--target", str(tauri_one), expect_success=False)
+        if (tauri_one / ".github").exists():
+            fail("unsupported Tauri version produced partial output")
+
+        workspace_server = root / "workspace-server"
+        write(
+            workspace_server / "server/Cargo.toml",
+            '[package]\nname = "api"\nversion.workspace = true\n',
+        )
+        write(workspace_server / "server/Cargo.lock")
+        run_copy(
+            "docker",
+            "--target",
+            str(workspace_server),
+            "--server-bin",
+            "api",
+            expect_success=False,
+        )
+        if (workspace_server / ".github").exists():
+            fail("workspace-inherited server produced partial output")
+
+        unsupported_client = root / "unsupported-client"
+        write(
+            unsupported_client / "server/Cargo.toml",
+            '[package]\nname = "api"\nversion = "0.1.0"\n',
+        )
+        write(unsupported_client / "server/Cargo.lock")
+        write(
+            unsupported_client / "client/package.json",
+            '{"scripts":{"build":"vite build"}}\n',
+        )
+        write(unsupported_client / "client/bun.lock")
+        run_copy(
+            "docker",
+            "--target",
+            str(unsupported_client),
+            "--server-bin",
+            "api",
+            "--with-client",
+            expect_success=False,
+        )
+        if (unsupported_client / ".github").exists():
+            fail("unsupported client produced partial output")
+
+        symlink_target = root / "symlink-target"
+        symlink_destination = root / "symlink-destination"
+        symlink_target.mkdir()
+        symlink_destination.mkdir()
+        write(symlink_target / "Cargo.toml")
+        (symlink_target / ".github").symlink_to(symlink_destination, target_is_directory=True)
+        run_copy(
+            "app",
+            "--target",
+            str(symlink_target),
+            "--app-bin",
+            "demo",
+            expect_success=False,
+        )
+        if (symlink_destination / "workflows/app-release.yml").exists():
+            fail("symbolic link allowed copy outside the target")
 
         missing = root / "missing"
         missing.mkdir()
@@ -263,6 +411,7 @@ def main() -> None:
     validate_skills()
     validate_links()
     validate_action_pins()
+    validate_release_lifecycle()
     validate_copy_assets()
     validate_protocols()
     validate_git_protocols()
