@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Copy validated GitHub Actions assets into an existing project."""
 
 from __future__ import annotations
@@ -10,7 +9,6 @@ import shutil
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
@@ -420,6 +418,7 @@ def docker_operations(
 
 def build_operations(args: argparse.Namespace, target: Path) -> list[Operation]:
     replacements: dict[str, str] = {}
+    server_bin: str | None = None
 
     if args.kind in {"ci", "app"}:
         require_files(target, ["Cargo.toml"])
@@ -494,6 +493,7 @@ def build_operations(args: argparse.Namespace, target: Path) -> list[Operation]:
     else:
         operations = [workflow_operation(args.kind, target, replacements)]
     if args.kind == "docker":
+        assert server_bin is not None
         operations.extend(
             docker_operations(target, server_bin, args.with_client),
         )

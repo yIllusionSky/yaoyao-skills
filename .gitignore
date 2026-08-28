@@ -35,3 +35,13 @@ build/
 **/build/
 dist/
 **/dist/
+
+### Python (local tooling)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+pyproject.toml

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Validate skill structure and run deterministic smoke tests."""
 
 from __future__ import annotations
@@ -8,7 +7,6 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / "skills"
