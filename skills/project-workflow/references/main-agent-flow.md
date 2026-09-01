@@ -1,6 +1,6 @@
 # Main Agent Flow
 
-本参考定义以真实 `main` 为基线和最终集成目标的本地任务编排协议。执行前必须读取 `workspace-layout.md`、`task-format.md`、`projects.md` 和 `commit.md`。
+本参考定义以真实 `main` 为基线和最终集成目标的本地任务编排协议。执行前必须读取 `workspace-layout.md`、`task-format.md` 和 `projects.md`。
 
 ## 工作区初始化
 

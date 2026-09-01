@@ -1,6 +1,6 @@
 # Implementation Subagent Flow
 
-本参考只适用于 implementation subagent。implementation subagent 必须先读取 `workspace-layout.md`、`task-format.md` 和 `commit.md`，只能在 main agent 指定的 `project-worktree`、`project-path`、`Allowed Paths`、`workflow/<task-id>/<project-worktree>` 和任务范围内工作。
+本参考只适用于 implementation subagent。implementation subagent 必须先读取 `workspace-layout.md` 和 `task-format.md`，只能在 main agent 指定的 `project-worktree`、`project-path`、`Allowed Paths`、`workflow/<task-id>/<project-worktree>` 和任务范围内工作。
 
 ## Main Agent 下发要求
 
