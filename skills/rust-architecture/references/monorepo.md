@@ -31,7 +31,7 @@
 - `apps/<business>/<app>` 放可部署、可独立运行或有明确产品入口的应用。业务只有一种语言时只创建实际存在的应用。
 - 业务专属的 package、crate、fixture 或生成代码留在该业务目录；不要为了目录整齐提前上移。
 - `packages/` 只放被多个业务真实使用的 TypeScript package，`crates/` 只放被多个业务真实使用的 Rust crate。禁止建立没有明确所有权的全局 `common`、`shared` 或 `utils` 桶。
-- 每个 Rust 后端自行选择最小够用的结构；复杂后端遵守本技能的四类边界。TypeScript 应用按自身 UI、server 或 library 职责组织，不套 Rust 目录。
+- 每个 Rust 后端自行选择最小够用的结构；存在复杂业务规则、跨能力用例编排或多个外部边界时，默认建议采用本技能的四类依赖职责。TypeScript 应用按自身 UI、server 或 library 职责组织，不套 Rust 目录。
 
 ## Workspace 与依赖
 
