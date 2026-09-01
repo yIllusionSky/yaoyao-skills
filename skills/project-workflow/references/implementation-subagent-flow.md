@@ -31,6 +31,8 @@ git rev-parse --show-toplevel
 
 安装依赖时也必须遵守 `Allowed Paths`。如果安装会修改未授权的根 lockfile、manifest 或其他 tracked 文件，停止并返回 main agent 扩展授权或代为处理。
 
+不得在 commit 中包含 `bun.lock` 或 `Cargo.lock`；需要更新 lockfile 时在任务记录中说明，由 main agent 在 `develop/` 统一处理。
+
 ## 工作流程
 
 1. 确认工作目录符合“工作目录”要求。
