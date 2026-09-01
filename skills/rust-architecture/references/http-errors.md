@@ -38,6 +38,13 @@
 - domain/application 错误在 HTTP adapter 映射为状态码和客户端错误码；不得让 HTTP 类型或状态码进入 domain。
 - 同一稳定 `code` 不随内部实现变化改变含义；需要不兼容调整时按公开 API 迁移处理。
 
+## Axum 与 OpenAPI 一致性
+
+- HTTP adapter 的成功响应类型和错误类型同时实现 Axum `IntoResponse` 与 Utoipa `IntoResponses`，使运行时状态、body 和 OpenAPI 描述来自同一组类型；具体规则见 [Axum OpenAPI contracts](./openapi-contracts.md)。
+- 错误 body 共用本文件定义的 envelope，但每个 handler 只公开其 operation 完整请求链实际可能返回的错误状态，包括相关 extractor、middleware 和 application 失败；不得用包含全部状态的全局响应集合污染所有 endpoint。
+- JSON、path 和 query 提取失败、认证或授权 middleware 拒绝、body 限制、404 fallback 与 405 等框架响应也必须映射为同一错误 envelope，并携带 request ID。
+- 契约测试必须确认生成的状态码和 schema 与真实 `IntoResponse` 映射一致，不能只验证 OpenAPI 可以成功序列化。
+
 ## 本地化
 
 客户端维护错误码到文案模板的映射，并使用 `params` 插值。语言资源位置服从项目已有 i18n 结构；本规范不强制根 `locales/` 目录。服务端日志应记录可排障上下文，但不得把内部详情复制到客户端参数中。

@@ -17,11 +17,13 @@
 │       └── admin/               # TypeScript 应用
 ├── packages/
 │   ├── ui/                      # 跨业务 TypeScript package
-│   └── api-client/              # 生成或手写的稳定客户端
+│   └── learning-api-client/     # 跨业务复用的生成类型与稳定客户端
 ├── crates/
 │   ├── telemetry/               # 跨业务 Rust capability crate
 │   └── third-party-client/
-├── contracts/                   # 跨语言稳定契约及生成来源
+├── contracts/
+│   └── learning-api/
+│       └── openapi.json         # Rust HTTP adapter 导出的稳定契约
 ├── Cargo.toml
 ├── Cargo.lock
 ├── package.json
@@ -47,16 +49,19 @@
 - 跨语言 request、response、event 和错误结构以稳定契约为来源。生成 client 或类型时记录生成命令与来源，不在生成文件中混入手写业务逻辑。
 - 不直接把 Rust domain entity 或 TypeScript UI model 当作跨语言契约。边界 adapter 负责在契约类型与应用/domain 类型之间转换。
 - 契约变化必须检查生产者、消费者、兼容策略和生成结果；只有一个语言使用的内部类型不进入全局 `contracts/`。
+- Rust REST 后端使用代码优先的 OpenAPI 契约时，遵守 [Axum OpenAPI contracts](./openapi-contracts.md)：每个独立部署、消费或版本化的 API 输出一份 `contracts/<api>/openapi.json`，再由 `openapi-typescript` 生成对应 TypeScript 类型，并由 `openapi-fetch` 提供运行时客户端。
 
 ## 工具链与仓库命令
 
 - 仓库不包含 `rust-toolchain.toml` 或 `rust-toolchain`。本地直接使用当前 Rust 版本，CI 和 Docker 使用 `stable`。
 - Bun 版本只在根 `package.json` 的 `packageManager` 中声明一次，所有 workspace 共用。
 - 根脚本只负责编排 workspace，不容纳业务实现；单个应用仍保留可独立执行的本地 check、test 和 build 命令。
+- 存在生成式 HTTP 契约时，根目录提供 `contracts:generate` 和无写入检查模式的 `contracts:check`；前者按“Rust 导出 OpenAPI → TypeScript 生成类型”的顺序更新产物，后者比较重新生成的内容并在漂移时失败。
 
 ## CI 与发布
 
 - pull request 默认分别运行完整 Cargo workspace 与 Bun workspace 检查。Rust 执行 fmt、clippy、test；TypeScript 使用 `bun ci` 后执行根 `lint`、`typecheck`、`test`、`build` scripts。
+- 提交生成的 OpenAPI JSON 和 TypeScript 类型；CI 执行 `contracts:check`，避免 Rust 路由、契约文件和客户端类型发生漂移。
 - 不默认对 Rust 使用 `--all-features`；先确认 feature 能同时启用，否则按项目声明的 feature matrix 验证。
 - 只有仓库具备可靠的 workspace 依赖图和变更范围计算时才执行 affected-only；同时保留定期或合并前全量验证，避免遗漏跨业务和跨语言契约影响。
 - 第一版 release 可以沿用仓库统一 `vX.Y.Z`，但必须同时验证实际发布的 Rust 与 TypeScript package 版本；只有项目确定采用独立服务版本时才扩展 tag、changelog 和目标选择规则。

@@ -62,6 +62,7 @@ adapter 先按接入类型分组，再按业务能力继续拆分。
 ## DTO 与 Contracts
 
 - HTTP request/response DTO 默认放在对应 HTTP capability 模块或其相邻 `dto.rs`。
+- Utoipa schema/response 派生、HTTP response 实现以及仅服务 HTTP wire format 的 `serde` 属性只放在传输边界类型上，不为生成 OpenAPI 把框架派生扩散到 application 或 domain 类型；domain 使用 `serde` 时继续遵守 Domain 部分的稳定领域契约条件。
 - application command/result 放在对应用例模块；domain entity 不直接充当所有 transport DTO。
 - 边界 adapter 负责外部类型、application 类型和 domain 类型之间的转换。
 - 只有类型被多个入口、crate 或独立消费者共享，并且存在稳定兼容契约时才建立独立 `contracts` 模块或 crate。
