@@ -40,7 +40,6 @@
 - 根 `package.json` 设置 `private: true`、精确的 `packageManager: "bun@<version>"`、实际 workspace 路径，以及仓库级 `lint`、`typecheck`、`test`、`build` scripts；提交单一根 `bun.lock`。
 - Bun workspace 内部依赖使用 `workspace:*`。只有具备独立发布、安装和生命周期边界的嵌套项目才拥有自己的 lockfile；不得因目录嵌套自然产生多套依赖树。
 - 可部署应用不得依赖另一个应用的内部源码。应用可以依赖稳定 package/crate，package 与 crate 不反向依赖 `apps/`。
-- 共享能力只有在至少两个真实消费者、稳定职责和明确所有者同时存在时才提取；单纯消除少量重复不能自动覆盖业务边界。
 
 ## 跨语言边界
 
