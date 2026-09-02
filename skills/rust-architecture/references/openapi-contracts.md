@@ -22,9 +22,20 @@ utoipa-axum.workspace = true
 ## 路由与契约来源
 
 - 所有需要进入公开契约的 REST handler 使用 `#[utoipa::path]`，并通过 `utoipa_axum::routes!` 注册到 `OpenApiRouter`；不要另外维护一份集中式 path 清单。
+- `#[utoipa::path]` 遵循最小标注原则：能从 handler 签名、具体返回类型和路由组合推导的信息不重复声明；只显式补充公开契约需要且无法推导的内容。普通 Axum handler 通常只需要 HTTP method 和 path；认证、安全要求、特殊 header、media type、description 或 example 等也只在满足上述条件时添加。
 - capability router 继续按业务能力拆分，顶层通过 `nest` 或 `merge` 组合。绕过 `OpenApiRouter` 注册的路由默认不进入契约，只允许 health、metrics 等明确不公开的基础设施 endpoint 这样处理。
 - 提取一个不连接数据库、不读取运行时秘密且不监听端口的 router 构造函数，使 server 和 OpenAPI exporter 复用完全相同的路由树。
-- `operation_id` 一旦被前端、测试或外部消费者使用就视为稳定契约；不得因 Rust 函数重命名无意修改。
+- 新增 handler 默认省略显式 `operation_id`，使用 Utoipa 根据 Rust 函数名生成的值，并允许它随函数重命名同步变化。已有显式 `operation_id` 不因存在本身自动成为长期契约，但移除前必须检查生成客户端、测试和已知外部消费者；外部消费情况无法确认时保留。只有外部契约明确要求该值独立于 Rust 名称保持稳定时，才新增或继续维护显式声明。
+- 默认省略 `tag`。只有 Swagger、Scalar 等交互式文档需要稳定分组，或下游工具明确依赖 tag 时才声明；不要仅为注解完整性添加。
+
+## 自动请求与参数
+
+启用 `axum_extras` 后，优先利用 Utoipa 对 Axum handler 参数的自动解析，避免在 `#[utoipa::path]` 中重复声明签名已经表达的契约。
+
+- primitive 或 tuple 形式的 `Path` 参数可从 path placeholder 与 handler 参数推导；结构化 `Path<T>` 和 `Query<T>` DTO 使用 `IntoParams`，由 extractor 确定参数位置。
+- `Json<T>`、`Form<T>`、`Bytes` 等 Utoipa 已识别的 body extractor 优先自动生成 request body；其中 DTO 实现生成 schema 所需的 trait。
+- `params(...)` 只用于 Utoipa 无法识别的参数、必要的命名覆盖或确有价值的说明；不要重复自动推导出的名称、位置和类型。
+- 自定义 extractor 不因内部复用 Axum extractor 就自动获得相同的 OpenAPI 语义。它实际承载 request body、参数、header 或安全信息且 Utoipa 无法识别时，显式声明相应契约；不要把所有自定义 extractor 一律写成 `request_body`。
 
 ## 自动响应与返回类型
 
@@ -44,6 +55,13 @@ async fn get_course(...) -> Result<OkJson<CourseDto>, GetCourseHttpError> {
 - 文件下载、流式 body、SSE 或多 content type 等特殊响应由本地命名类型手动实现 `IntoResponse` 与 `IntoResponses`，继续让 handler 返回类型驱动契约。OpenAPI 无法完整表达运行时语义时，使用最接近的 media type/schema 并补充描述，不退回到 handler 上的显式 `responses(...)`。
 - 业务资源不存在的 `404` 属于对应 operation 的错误集合；路由不存在的 fallback `404` 和错误 HTTP method 的 `405` 不属于已有 operation，不注入每个 endpoint，但运行时仍使用统一错误 envelope。
 - 不建立包含所有 `4xx` 和 `5xx` 的万能 `ApiResponses`；减少标注不能以牺牲 endpoint 契约准确性为代价。
+
+## Schema 收集
+
+- 直接由 REST route 的已识别 request extractor、`request_body` 或 response body 引用的 `ToSchema` 类型，优先依靠 Utoipa 与 `utoipa-axum` 从路由递归收集，不在 `ApiDoc` 中重复枚举。
+- 只手动登记路由宏无法发现的 schema 根，例如 WebSocket client/server message，以及仅通过 `IntoResponses`、`ToResponse` 或手写 `$ref` 间接引用且生成结果未自动收集的 schema。类型在语义上被 REST 返回并不代表宏一定能发现它。
+- 自定义 response wrapper 选择内联 schema 时仍要检查其内部 `$ref` 是否可解析；选择 component reference 时必须确保对应 schema 进入 `components`。不要为缩短 `ApiDoc` 制造 dangling `$ref`。
+- 契约测试除检查关键 schema 存在外，还必须验证所有指向本 OpenAPI 文档 `components` 的 `$ref` 都能解析。
 
 ## OpenAPI 导出
 
