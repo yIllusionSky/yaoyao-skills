@@ -1,6 +1,6 @@
 # REST HTTP Errors
 
-用于新建 HTTP 边界，以及本次涉及的响应格式或错误映射。新项目采用下述契约；已有项目保留现有公开响应，只有当前任务包含迁移时才调整不兼容格式和客户端。
+用于 REST HTTP 边界的响应格式和错误映射。
 
 ## 响应契约
 
@@ -41,7 +41,7 @@
 
 ## Axum 与 OpenAPI 一致性
 
-使用 Axum/Utoipa 生成或修改契约时，按 [Axum OpenAPI contracts](./openapi-contracts.md) 定义响应类型、完整错误状态和一致性测试。普通错误修复不因此引入契约生成工具。
+HTTP adapter 按 [Axum OpenAPI contracts](./openapi-contracts.md) 定义响应类型、完整错误状态和一致性测试。
 
 ## 本地化
 

@@ -5,9 +5,7 @@ description: Rust 项目架构技能。用于规划、创建、审查或重构 R
 
 # Rust Architecture
 
-用于维护最小够用、边界清晰且能随业务增长的 Rust 结构。除固定技术词外使用中文说明；先服从项目已有的合理约定，不为模板完整性创建空目录，也不借架构调整修改任务范围外的代码。
-
-以下技术选型用于新建能力且没有既有合理约定的场景；框架或公开契约迁移须属于当前任务。
+用于维护最小够用、边界清晰且能随业务增长的 Rust 结构。除固定技术词外使用中文说明；不为模板完整性创建空目录，也不借架构调整修改任务范围外的代码。
 
 ## 工作方式
 
@@ -22,12 +20,12 @@ description: Rust 项目架构技能。用于规划、创建、审查或重构 R
 | monorepo 边界、共享包、跨语言集成或仓库级验证 | [monorepo](./references/monorepo.md) |
 | 四类边界的设计或调整 | [backend design](./references/backend-design.md) |
 | 新增或重组测试 | [testing](./references/testing.md) |
-| 新建 HTTP 边界、响应格式或错误映射 | [HTTP errors](./references/http-errors.md) |
-| OpenAPI、跨语言 HTTP 契约或生成客户端 | [Axum OpenAPI contracts](./references/openapi-contracts.md) |
+| HTTP 边界、响应格式或错误映射 | [HTTP errors](./references/http-errors.md) |
+| REST 后端、OpenAPI、跨语言 HTTP 契约或生成客户端 | [Axum OpenAPI contracts](./references/openapi-contracts.md) |
 
 ## 顶层边界
 
-存在复杂业务规则、跨能力用例编排或多个外部边界的后端服务，默认建议使用 `domain`、`application`、`ports`、`adapters` 表达四类依赖职责；简单服务和已有合理架构选择能完整承载当前需求的最小结构。四类边界可以作为顶层模块，也可以在按业务能力组织的模块内体现；采用时必须保持核心逻辑不依赖具体外部实现。具体职责和依赖规则见 [backend design](./references/backend-design.md)。
+存在复杂业务规则、跨能力用例编排或多个外部边界的后端服务，默认建议使用 `domain`、`application`、`ports`、`adapters` 表达四类依赖职责；简单服务选择能完整承载当前需求的最小结构。四类边界可以作为顶层模块，也可以在按业务能力组织的模块内体现；采用时必须保持核心逻辑不依赖具体外部实现。具体职责和依赖规则见 [backend design](./references/backend-design.md)。
 
 - `domain`：业务状态、规则、不变量和领域错误。
 - `application`：用例、授权、事务意图和跨能力编排。
@@ -49,7 +47,7 @@ description: Rust 项目架构技能。用于规划、创建、审查或重构 R
 
 - 简单 CLI 或小工具：使用 `clap`，入口安装 `color-eyre`、解析参数并调用核心入口；业务错误需要调用方匹配时使用 `thiserror`。纯逻辑和 IO 开始独立变化后再拆 `commands`、业务模块和 adapters。
 - 普通 library crate：使用 `thiserror` 定义可匹配错误，声明支持的 `rust-version`。少量内聚类型可以同文件，增长后按领域命名拆分，避免长期使用泛化 `types.rs`。
-- 后端服务或复杂应用：新建 REST 后端默认使用 Axum，依赖职责按“顶层边界”选择；需要被集成测试、辅助 binary 或其他 crate 复用时增加 `lib.rs`。
+- 后端服务或复杂应用：REST 后端使用 Axum、`utoipa` 和 `utoipa-axum`，按契约参考生成 OpenAPI；依赖职责按“顶层边界”选择，需要被集成测试、辅助 binary 或其他 crate 复用时增加 `lib.rs`。
 - 同时提供 CLI 和 library：CLI 负责参数和顶层报告，可复用能力留在 library 模块。
 - TypeScript + Rust monorepo：顶层先按业务能力组织可部署应用，再在业务内部选择语言和应用形态；只有真实跨业务复用的 TypeScript package 或 Rust crate 才进入全局共享区。具体布局、workspace、跨语言契约和 CI 规则见 [monorepo](./references/monorepo.md)。
 

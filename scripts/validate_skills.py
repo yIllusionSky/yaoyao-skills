@@ -792,7 +792,21 @@ def validate_parallel_worktrees() -> None:
         git(agent_b, "merge-base", "--is-ancestor", "HEAD", "task-a", expect_success=False)
         git(agent_b, "merge-base", "--is-ancestor", base, "HEAD")
         write(agent_b / "apps/b/source.txt", "finish interrupted b\n")
-        commit_files(agent_b, "resume b", "apps/b/source.txt")
+        resumed_b = commit_files(agent_b, "resume b", "apps/b/source.txt")
+
+        # If B needs the latest shared work, synchronize into B before recording its base.
+        shared_base = git(integration, "rev-parse", "HEAD").stdout.strip()
+        git(agent_b, "merge", "--no-edit", "task-a")
+        git(agent_b, "merge-base", "--is-ancestor", shared_base, "HEAD")
+        git(agent_b, "merge-base", "--is-ancestor", resumed_b, "HEAD")
+        if (agent_b / "root.txt").read_text() != "integrated a\n":
+            fail("diverged project did not receive the latest shared work")
+        if git(integration, "rev-parse", "HEAD").stdout.strip() != shared_base:
+            fail("project synchronization prematurely integrated unfinished work")
+        record = ".workflow/task-a/apps-b/task.md"
+        write(agent_b / record, f"Status: in-progress\nBase Commit: {shared_base}\n")
+        commit_files(agent_b, "record synchronized base", record)
+
         git(integration, "merge", "--no-edit", "workflow/task-a/apps-b")
         if git(integration, "status", "--porcelain").stdout:
             fail("local changes in project worktrees leaked into integration")

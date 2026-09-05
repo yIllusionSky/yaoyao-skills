@@ -62,7 +62,7 @@ git -C develop merge workflow/<task-id>/<project-worktree>
 ```
 
 3. 一个 slot 释放后再启动下一个等待项目，直到全部完成。不要要求所有项目都 spawn 后才开始等待。
-4. merge conflict 由 main agent 处理；项目实现问题重新派回 implementation subagent。需要同步项目基线时，先确认该 subagent 已停止修改 worktree；已集成分支 fast-forward 到任务分支，来源明确的并行分叉合入任务分支后继续，来源不明时调查。同步前保留未提交工作，并在项目记录和根日志中更新 `Base Commit`。
+4. merge conflict 由 main agent 处理；项目实现问题重新派回 implementation subagent。需要同步项目基线时，先确认该 subagent 已停止修改 worktree 并保留未提交工作；已集成分支 fast-forward 到任务分支，来源明确的并行分叉则在项目分支合入任务分支，来源不明时调查。同步成功后，在项目记录和根日志中将 `Base Commit` 更新为本次合入的任务分支完整 SHA。
 5. 全部项目 merge 后完成本任务涉及的根配置、长期文档和跨项目集成，正常安装依赖、更新根锁文件并运行整体测试；结果写入根 `log.md`，通过后提交集成结果。
 
 ## 阶段 4：总体验收和合并 main

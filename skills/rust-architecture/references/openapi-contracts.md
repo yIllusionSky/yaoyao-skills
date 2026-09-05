@@ -1,11 +1,10 @@
 # Axum OpenAPI Contracts
 
-用于本次涉及的 OpenAPI 契约生成、调整和 TypeScript 客户端。已有项目先遵守其合理框架与公开契约；只有任务明确包含迁移时才更换框架或响应格式。
+用于 REST 后端的接口实现、OpenAPI 契约生成和 TypeScript 客户端。
 
 ## 默认技术栈与边界
 
-- 新建 REST HTTP 后端且没有既有框架约定时默认使用 Axum。
-- 需要 OpenAPI 时默认使用 `utoipa` 与 `utoipa-axum`；`utoipa` 必须启用 `axum_extras` 和 `auto_into_responses`，版本由 workspace 统一选择并保持彼此兼容。
+- `utoipa` 必须启用 `axum_extras` 和 `auto_into_responses`，版本由 workspace 统一选择并保持彼此兼容。
 - `utoipa-swagger-ui`、Scalar 或其他文档 UI 只在项目需要交互式文档时加入，不是生成契约的必要依赖。
 - Axum、Utoipa、HTTP 状态和传输 DTO 只存在于 HTTP adapter；domain 和 application 不依赖这些框架类型。
 
