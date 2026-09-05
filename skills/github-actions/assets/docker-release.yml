@@ -10,13 +10,12 @@ permissions:
 
 concurrency:
   group: docker-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   PROJECT_NAME: ${{ github.event.repository.name }}
   SERVER_BIN: __SERVER_BIN__
   WITH_CLIENT: "__WITH_CLIENT__"
-  BUN_VERSION: 1.3.14
 
 jobs:
   docker:
@@ -29,6 +28,7 @@ jobs:
           lfs: true
 
       - name: Prepare release metadata
+        if: github.ref_type == 'tag'
         shell: bash
         run: |
           if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -61,16 +61,12 @@ jobs:
           if not notes:
               raise SystemExit(f"CHANGELOG version section is empty: [{version}]")
 
-          Path("RELEASE_NOTES.md").write_text(notes + "\n", encoding="utf-8")
+          (Path(os.environ["RUNNER_TEMP"]) / "RELEASE_NOTES.md").write_text(notes + "\n", encoding="utf-8")
           PY
 
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           toolchain: stable
-
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
 
       - name: Resolve image metadata
         id: meta
@@ -103,6 +99,17 @@ jobs:
               raise SystemExit(f"server package name is not a valid local image name: {server_image}")
 
           output = Path(os.environ["GITHUB_OUTPUT"])
+          targets = {
+              "server": {
+                  "context": "./server",
+                  "dockerfile": "Dockerfile",
+                  "platforms": ["linux/amd64"],
+                  "tags": [f"{server_image}:{version}"],
+                  "args": {"APP_BIN": os.environ["SERVER_BIN"]},
+                  "cache-from": ["type=gha,scope=server"],
+                  "cache-to": ["type=gha,scope=server,mode=max"],
+              },
+          }
           with output.open("a", encoding="utf-8") as stream:
               stream.write(f"server_image={server_image}\n")
               stream.write(f"server_tag={version}\n")
@@ -118,38 +125,78 @@ jobs:
                   if client_version != version:
                       raise SystemExit(f"client version must match release: {client_version} != {version}")
                   stream.write(f"client_image={client_image}\n")
-                  stream.write(f"client_tag={client_version}\n")
+                  stream.write(f"client_tag={version}\n")
+                  targets["client"] = {
+                      "context": "./client",
+                      "dockerfile": "Dockerfile",
+                      "platforms": ["linux/amd64"],
+                      "tags": [f"{client_image}:{version}"],
+                      "cache-from": ["type=gha,scope=client"],
+                      "cache-to": ["type=gha,scope=client,mode=max"],
+                  }
+
+          bake = {"group": {"default": {"targets": list(targets)}}, "target": targets}
+          (Path(os.environ["RUNNER_TEMP"]) / "docker-bake.json").write_text(
+              json.dumps(bake), encoding="utf-8",
+          )
+
+      - name: Create draft release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: ${{ runner.temp }}/RELEASE_NOTES.md
+          draft: true
+          prerelease: false
 
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
-      - name: Build server image
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      - name: Build images
+        uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
         with:
-          context: ./server
-          file: ./server/Dockerfile
-          push: false
-          platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.server_image }}:${{ steps.meta.outputs.server_tag }}
-          build-args: |
-            APP_BIN=${{ steps.meta.outputs.server_bin }}
+          source: .
+          files: ${{ runner.temp }}/docker-bake.json
           load: true
-          cache-from: type=gha,scope=server
-          cache-to: type=gha,scope=server,mode=max
 
-      - name: Build client image
-        if: steps.meta.outputs.has_client == 'true'
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
-        with:
-          context: ./client
-          file: ./client/Dockerfile
-          push: false
-          platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.client_image }}:${{ steps.meta.outputs.client_tag }}
-          load: true
-          cache-from: type=gha,scope=client
-          cache-to: type=gha,scope=client,mode=max
+      - name: Install parallel compressor
+        if: github.ref_type == 'tag'
+        run: command -v pigz >/dev/null || (sudo apt-get update && sudo apt-get install -y pigz)
+
+      - name: Prepare deploy configuration
+        if: github.ref_type == 'tag'
+        shell: python
+        env:
+          SERVER_IMAGE: ${{ steps.meta.outputs.server_image }}
+          SERVER_TAG: ${{ steps.meta.outputs.server_tag }}
+          CLIENT_IMAGE: ${{ steps.meta.outputs.client_image }}
+          CLIENT_TAG: ${{ steps.meta.outputs.client_tag }}
+        run: |
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          deploy = Path("release/deploy")
+          deploy.mkdir(parents=True, exist_ok=True)
+          compose = json.loads(subprocess.check_output([
+              "docker", "compose", "-f", "docker-compose.yaml", "config",
+              "--no-interpolate", "--no-path-resolution", "--no-env-resolution", "--format", "json",
+          ]))
+          for service in compose["services"].values():
+              service.pop("build", None)
+          (deploy / "docker-compose.yaml").write_text(json.dumps(compose, indent=2) + "\n", encoding="utf-8")
+          example = Path(".env.example")
+          if example.is_file():
+              text = example.read_text(encoding="utf-8")
+              for key in ("SERVER_IMAGE", "SERVER_TAG", "CLIENT_IMAGE", "CLIENT_TAG"):
+                  if os.environ.get(key):
+                      text = re.sub(rf"^{key}=.*$", f"{key}={os.environ[key]}", text, flags=re.MULTILINE)
+              (deploy / ".env.example").write_text(text, encoding="utf-8")
 
       - name: Create release package
+        if: github.ref_type == 'tag'
         shell: bash
         run: |
           mkdir -p release/deploy
@@ -162,9 +209,6 @@ jobs:
             docker save -o release/deploy/docker.tar \
               "${{ steps.meta.outputs.server_image }}:${{ steps.meta.outputs.server_tag }}"
           fi
-
-          cp docker-compose.yaml release/deploy/
-          [ -f .env.example ] && cp .env.example release/deploy/
 
           for dir in config conf pingap; do
             [ -d "$dir" ] || continue
@@ -180,12 +224,21 @@ jobs:
             exit 1
           fi
 
-          tar -czf "release/$PROJECT_NAME-$VERSION.tar.gz" -C release/deploy .
+          tar -I 'pigz -6' -cf "release/$PROJECT_NAME-$VERSION.tar.gz" -C release/deploy .
 
       - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        if: github.ref_type == 'tag'
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
-          body_path: RELEASE_NOTES.md
+          body_path: ${{ runner.temp }}/RELEASE_NOTES.md
           files: release/${{ env.PROJECT_NAME }}-${{ env.VERSION }}.tar.gz
           fail_on_unmatched_files: true
+          draft: true
+          prerelease: false
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false

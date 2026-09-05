@@ -20,8 +20,8 @@ USES_PATTERN = re.compile(
 ACTION_PINS = {
     "Swatinem/rust-cache": ("6323deb102c322ba6fcbdcafc7e3dddab59af2b6", "v2.9.2"),
     "actions/checkout": ("3d3c42e5aac5ba805825da76410c181273ba90b1", "v7.0.1"),
-    "actions/setup-go": ("924ae3a1cded613372ab5595356fb5720e22ba16", "v6.5.0"),
-    "docker/build-push-action": ("53b7df96c91f9c12dcc8a07bcb9ccacbed38856a", "v7.3.0"),
+    "actions/cache": ("55cc8345863c7cc4c66a329aec7e433d2d1c52a9", "v6.1.0"),
+    "docker/bake-action": ("d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b", "v7.3.0"),
     "docker/setup-buildx-action": ("bb05f3f5519dd87d3ba754cc423b652a5edd6d2c", "v4.2.0"),
     "dtolnay/rust-toolchain": ("4be7066ada62dd38de10e7b70166bc74ed198c30", "stable"),
     "oven-sh/setup-bun": ("0c5077e51419868618aeaa5fe8019c62421857d6", "v2.2.0"),
@@ -128,13 +128,14 @@ def validate_release_lifecycle() -> None:
     release_workflows = (
         SKILLS / "github-actions" / "assets" / "app-release.yml",
         SKILLS / "github-actions" / "assets" / "tauri-release.yml",
+        SKILLS / "github-actions" / "assets" / "docker-release.yml",
         SKILLS / "github-actions" / "assets" / "monorepo" / "workflows" / "release.yml",
     )
     for workflow in release_workflows:
         text = workflow.read_text(encoding="utf-8")
         if "draft: true" not in text:
             fail(f"release must be created as a draft: {workflow}")
-        if 'gh release edit "$GITHUB_REF_NAME" --draft=false' not in text:
+        if 'gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false' not in text:
             fail(f"release is not published after assets succeed: {workflow}")
 
 
@@ -307,7 +308,7 @@ def validate_copy_assets() -> None:
             or "scope=monorepo-typescript" not in release_workflow
         ):
             fail("monorepo release must keep Rust and TypeScript build caches separate")
-        if "npmrc=${{ secrets.NPMRC }}" not in release_workflow:
+        if "NPMRC: ${{ secrets.NPMRC }}" not in release_workflow or "id=npmrc,env=NPMRC" not in release_workflow:
             fail("monorepo TypeScript build does not mount the optional npmrc secret")
         if "release/deploy/.env\n" not in release_workflow:
             fail("monorepo release package is missing a Compose-ready .env")
@@ -895,6 +896,7 @@ def main() -> None:
     validate_action_pins()
     validate_release_lifecycle()
     validate_copy_assets()
+    subprocess.run([sys.executable, str(ROOT / "scripts/test_github_actions.py")], check=True)
     validate_git_protocols()
     validate_parallel_worktrees()
     validate_review_snapshots()

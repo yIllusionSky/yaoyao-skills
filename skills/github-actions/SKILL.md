@@ -13,6 +13,7 @@ workflow 和部署配置遵守对应 assets 的实现规则。需要复制文件
 - 默认不覆盖已有文件；只有用户明确要求时使用 `--force`。
 - release workflow 先创建 draft，所有平台产物成功上传后再公开发布。
 - monorepo 任务读取 [monorepo](./references/monorepo.md)，使用 `assets/monorepo/` 中与独立项目隔离的 workflow 和 Docker 资产。
+- CI 仅处理目标为 `main` 的 PR，不监听 push；release 仅处理版本 tag push。缓存与打包行为见 [构建缓存](./references/build-cache.md)。
 
 ## 复制命令
 
