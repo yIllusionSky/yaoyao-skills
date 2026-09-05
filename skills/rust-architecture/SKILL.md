@@ -7,12 +7,23 @@ description: Rust 项目架构技能。用于规划、创建、审查或重构 R
 
 用于维护最小够用、边界清晰且能随业务增长的 Rust 结构。除固定技术词外使用中文说明；先服从项目已有的合理约定，不为模板完整性创建空目录，也不借架构调整修改任务范围外的代码。
 
+以下技术选型用于新建能力且没有既有合理约定的场景；框架或公开契约迁移须属于当前任务。
+
 ## 工作方式
 
-1. 先读取 workspace、根清单、锁文件、入口、现有模块、公开 API、测试和项目规范，判断当前任务是局部实现、模块调整、crate 拆分、monorepo 边界调整还是新项目设计。
+1. 按本次任务读取相关清单、入口、模块、公开 API、测试和项目规范，判断是局部实现、模块调整、crate 拆分、monorepo 边界调整还是新项目设计。
 2. 找出本次变化所属的业务能力、聚合或用例，以及它允许依赖的方向；不要先按技术名创建目录再寻找内容填入。
 3. 选择能完整承载当前需求的最小结构。已有巨型文件时，不为一次局部修改重排无关代码；但不得把新的独立职责继续追加进去，应先抽取本次涉及的能力。
-4. 需要选择或调整目录结构时读取 [layouts](./references/layouts.md)。同时存在 TypeScript 与 Rust workspace，或任务涉及 monorepo 边界、共享包、跨语言契约与 CI 时读取 [monorepo](./references/monorepo.md)。决定采用四类边界时必须读取 [backend design](./references/backend-design.md)。新增或重组测试时读取 [testing](./references/testing.md)。存在 REST HTTP adapter 时读取 [HTTP errors](./references/http-errors.md)；新建 REST 后端或任务涉及 OpenAPI、跨语言 HTTP 契约和生成客户端时还必须读取 [Axum OpenAPI contracts](./references/openapi-contracts.md)。
+4. 只读取本次决策需要的参考：
+
+| 本次任务涉及 | 参考 |
+| --- | --- |
+| 目录结构选择或调整 | [layouts](./references/layouts.md) |
+| monorepo 边界、共享包、跨语言集成或仓库级验证 | [monorepo](./references/monorepo.md) |
+| 四类边界的设计或调整 | [backend design](./references/backend-design.md) |
+| 新增或重组测试 | [testing](./references/testing.md) |
+| 新建 HTTP 边界、响应格式或错误映射 | [HTTP errors](./references/http-errors.md) |
+| OpenAPI、跨语言 HTTP 契约或生成客户端 | [Axum OpenAPI contracts](./references/openapi-contracts.md) |
 
 ## 顶层边界
 
@@ -22,25 +33,24 @@ description: Rust 项目架构技能。用于规划、创建、审查或重构 R
 - `application`：用例、授权、事务意图和跨能力编排。
 - `ports`：由核心调用方需要定义的外部能力边界。
 - `adapters`：HTTP、CLI、数据库、存储和第三方系统等具体接入或实现。
-- `main.rs` 是 composition root，只初始化配置、日志和运行时，组装 adapters 与 application，并启动入口。
 
-不得创建代表整个服务的 God repository、God application façade 或全局 `contracts` 类型桶。`mod.rs`、`lib.rs` 和 `main.rs` 默认只放模块声明、受控 re-export、公开 API 或组装代码，不持续堆积业务实现。
+`main.rs` 是 composition root，负责初始化、依赖组装和启动；`mod.rs`、`lib.rs` 控制模块声明与最小公开面，不持续堆积业务实现。
 
 ## 模块增长
 
 按“内聚函数 → 单文件模块 → 目录模块 → 同 crate 多个业务模块 → capability crate → 独立服务”逐级演进，不因文件变长直接跳到拆 crate，也不机械地一类型一文件。
 
 - 按共同不变量和共同变化原因保持内聚；同时出现多个可独立变化的业务能力、用例组或外部能力时拆分。
-- 手写 Rust 文件接近或超过 500 行时必须审查职责、公开项数量和变化原因；超过 800 行时必须拆分，或在架构文档或变更说明中记录其仍保持单一职责的具体理由。
+- 本次涉及的手写 Rust 文件接近或超过 500 行时审查职责、公开项数量和变化原因；超过 800 行时拆分，或在架构文档或变更说明中记录仍保持单一职责的具体理由。不扫描无关文件触发重构。
 - 自动生成且不手工维护的文件可以超过阈值，但必须能明确识别生成来源，不得把手写逻辑混入生成文件。
-- 入口模块只做索引和组装。不要用 crate 级 `allow(clippy::too_many_lines)` 掩盖设计问题；必要例外缩小到具体 item 并说明原因。
+- 不用 crate 级 `allow(clippy::too_many_lines)` 掩盖设计问题；必要例外缩小到具体 item 并说明原因。
 
 ## 结构选择
 
 - 简单 CLI 或小工具：使用 `clap`，入口安装 `color-eyre`、解析参数并调用核心入口；业务错误需要调用方匹配时使用 `thiserror`。纯逻辑和 IO 开始独立变化后再拆 `commands`、业务模块和 adapters。
-- 普通 library crate：由 `lib.rs` 控制最小 public API，使用 `thiserror` 定义可匹配错误，不把 `color-eyre` 暴露为公共错误；声明支持的 `rust-version`。少量内聚类型可以同文件，增长后按领域命名拆分，避免长期使用泛化 `types.rs`。
-- 后端服务或复杂应用：先选择能承载当前需求的最小结构；新建 REST HTTP 后端且项目没有既有框架约定时默认使用 Axum，已有合理框架不为统一而迁移。符合“顶层边界”所述条件时默认建议采用四类依赖职责。`main.rs` 只做组装；需要被集成测试、辅助 binary 或其他 crate 复用时增加 `lib.rs`。
-- 同时提供 CLI 和 library：`main.rs` 只负责 `clap`、`color-eyre` 和调用库入口，可复用能力留在 library 模块。
+- 普通 library crate：使用 `thiserror` 定义可匹配错误，声明支持的 `rust-version`。少量内聚类型可以同文件，增长后按领域命名拆分，避免长期使用泛化 `types.rs`。
+- 后端服务或复杂应用：新建 REST 后端默认使用 Axum，依赖职责按“顶层边界”选择；需要被集成测试、辅助 binary 或其他 crate 复用时增加 `lib.rs`。
+- 同时提供 CLI 和 library：CLI 负责参数和顶层报告，可复用能力留在 library 模块。
 - TypeScript + Rust monorepo：顶层先按业务能力组织可部署应用，再在业务内部选择语言和应用形态；只有真实跨业务复用的 TypeScript package 或 Rust crate 才进入全局共享区。具体布局、workspace、跨语言契约和 CI 规则见 [monorepo](./references/monorepo.md)。
 
 ## Crate 与公开 API

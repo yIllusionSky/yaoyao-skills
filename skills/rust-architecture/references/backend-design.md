@@ -53,7 +53,7 @@ port 由调用方需要的外部能力定义，而不是由数据库、SDK 或�
 adapter 先按接入类型分组，再按业务能力继续拆分。
 
 - `adapters/http`：route、认证信息提取、请求 DTO、响应 DTO、状态码和错误映射；每个资源或用例组独立模块。
-- `adapters/cli`：所有 CLI 使用 `clap`；只做参数解析、输入输出和 application 调用。
+- `adapters/cli`：参数解析、输入输出和 application 调用；技术选型沿用主 skill。
 - `adapters/db`：实现 repository ports、SQL、row 映射和数据库错误映射；按 capability/聚合拆模块，不建立一个覆盖所有 port 的巨型 impl。
 - `adapters/storage`：文件系统或对象存储实现。
 - `adapters/external`：第三方 client 的调用和协议转换。
@@ -77,24 +77,12 @@ adapter 先按接入类型分组，再按业务能力继续拆分。
 
 ## 拆分与演进
 
-按以下顺序演进：
-
-```text
-内聚函数
-→ 单文件模块
-→ 目录模块
-→ 同 crate 多个业务模块
-→ capability crate
-→ 独立服务
-```
-
-以下任一情况触发拆分审查：
+遵守主 skill 的增长顺序和范围，在本次涉及的代码中重点检查：
 
 - 一个文件包含多个可独立变化的业务能力、角色流程或外部能力。
 - 一个 port trait 出现多组无关方法，或实现必须跨越大量不相关 SQL。
 - 一个 application service 被所有 handler 依赖并持续增加无关方法。
 - 一个 HTTP 或 DB module 注册、实现多个独立资源组。
 - 修改单一能力经常需要在同一批巨型文件中追加代码。
-- 手写文件达到主 skill 的 500/800 行审查阈值。
 
 拆分后，每个模块应有清晰名称、最小公开面和单一变化原因；不要用一类型一文件、空层、无行为 DTO wrapper 或无边界 trait 制造形式复杂度。

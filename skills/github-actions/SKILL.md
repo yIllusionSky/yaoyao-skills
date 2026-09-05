@@ -5,15 +5,14 @@ description: 创建或维护 Rust 项目及 TypeScript + Rust monorepo 的 GitHu
 
 # GitHub Actions
 
-优先使用 `scripts/copy_assets.py` 复制最接近的 asset。asset 是执行规则来源；除非用户明确要求，不要从头重写 workflow。
+新建 workflow 优先用 `scripts/copy_assets.py` 复制最接近的 asset。维护已有 workflow 时先读取实际命令和工具链配置，仅修改本次涉及的部分；assets 提供默认实现，不覆盖项目已有的合理约定。
 
 - 说明文字使用中文；GitHub Actions 字段、命令、文件名和固定关键词保持原文。
 - Docker assets 是已有项目的部署叠加层，不创建 Rust、Tauri 或 frontend 应用源码。
 - 复制前验证目标项目和全部冲突；验证失败时不写入任何文件。
 - 默认不覆盖已有文件；只有用户明确要求时使用 `--force`。
 - release workflow 先创建 draft，所有平台产物成功上传后再公开发布。
-- monorepo CI 默认分别验证完整 Cargo 与 Bun workspace；只有项目具备可靠的依赖图和受影响范围计算时才缩小检查，并保留定期全量验证。
-- monorepo 任务必须读取 [monorepo](./references/monorepo.md)，并使用 `assets/monorepo/` 中与普通独立项目隔离的 workflow 和 Docker 资产。
+- monorepo 任务读取 [monorepo](./references/monorepo.md)；新建时使用 `assets/monorepo/` 中与独立项目隔离的 workflow 和 Docker 资产。
 
 ## 复制命令
 
@@ -36,7 +35,5 @@ python3 <skill-path>/scripts/copy_assets.py docker --target <project-root> --ser
 - `tauri`：存在 `package.json`、`bun.lock` 和 `src-tauri/Cargo.toml`，且 `@tauri-apps/cli` 与 Rust `tauri` 依赖的 major version 都是 2。
 - `docker`：`server` 是可以离开父 workspace 单独构建的 crate，存在 `server/Cargo.toml` 和 `server/Cargo.lock`，不使用 workspace 继承或指向 `server/` 外部的 path dependency。
 - `docker --with-client`：除 server 前置条件外，存在 `client/package.json` 和 `client/bun.lock`，并显式依赖 `@sveltejs/adapter-node`，`build` 脚本产生 `build/index.js`。
-
-monorepo 仓库不创建、读取或要求 `rust-toolchain.toml` 与 `rust-toolchain`；本地使用当前激活的 toolchain，GitHub Actions 与 Docker builder 独立使用 `stable`。第一版 release 沿用仓库统一 `vX.Y.Z`，要求 Rust 与 TypeScript 目标版本同时匹配 tag，并用一个 Pingap 将 `/api` 转发到 Rust、其余路径转发到 TypeScript；示例只提供 HTTP 80，不伪装已配置 TLS。
 
 复制完成后，按目标项目实际命令审查 workflow 并运行 `actionlint`。Action 使用完整 commit SHA 固定版本，并在同行注释精确 release tag；没有 release tag 的 toolchain action 注释固定 channel。

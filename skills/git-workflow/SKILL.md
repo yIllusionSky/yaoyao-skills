@@ -8,7 +8,7 @@ description: 生成或审查 branch、commit、pull request、issue 和 tag 内�
 - 不写提交人、协作者、工具来源或 AI 署名。
 - 除固定关键词、命令和代码符号外，使用中文。
 - 先读取仓库现有模板、贡献规范和目标分支，再生成或更新内容；不要用通用模板覆盖仓库规则。
-- 变更影响项目入口、目录结构、子项目职责、架构边界、功能行为、运行方式、手动测试方式或配置时，在提交或创建 PR 前使用 `project-docs` 检查长期文档。
+- 只生成或审查 Git 内容时不扩展为实现任务；提交或创建 PR 前，按实际 diff 使用 `project-docs` 检查受影响的长期文档，不补齐无关历史缺项。
 
 ## Branch
 
@@ -40,7 +40,5 @@ description: 生成或审查 branch、commit、pull request、issue 和 tag 内�
 - 只创建严格匹配 `vX.Y.Z` 的轻量 tag，不创建 annotated tag。
 - 项目安装 `changelog` 时，先使用它从上一个稳定 semver tag 到当前 `HEAD` 归纳版本区块和 release notes。
 - 未安装 `changelog` 时，不自行修改 changelog；停止并报告缺少发布说明来源。
-- 提交 changelog 变更后再创建 tag。
-- changelog 版本标题统一使用 `[X.Y.Z] - YYYY-MM-DD`。
+- 确认目标版本区块为 `## [X.Y.Z] - YYYY-MM-DD`，提交 changelog 后创建 tag，例如 `git tag v1.2.3`。
 - tag push 后由 release workflow 从对应版本区块生成 release notes。
-- 需要命令参考时读取 [tag](./references/tag.md)。

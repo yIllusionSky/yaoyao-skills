@@ -1,6 +1,6 @@
 # Main Agent Flow
 
-本参考定义以真实 `main` 为基线和最终集成目标的本地任务编排协议。执行前必须读取 `workspace-layout.md`、`task-format.md` 和 `projects.md`。
+以本地 `main` 为基线和最终集成目标；目录与任务字段遵守主 skill 引用的公共参考。
 
 ## 工作区初始化
 
@@ -42,15 +42,15 @@ git -C develop switch -c <task-id>
 
 对每个项目执行：
 
-1. 不存在时从 `<task-id>` 创建 detached worktree：
+1. 首次派发时，将当前 `<task-id>` 的完整 SHA 写入项目 `task.md` 的 `Base Commit` 并提交记录，再从任务分支准备 worktree。不存在时执行：
 
 ```bash
 git -C develop worktree add --detach ../<project-worktree> <task-id>
 ```
 
-2. 已存在时验证它属于同一 Git 仓库、工作区状态可解释，并且没有其他任务的未完成改动；无法确认时停止，不复用该目录。
+2. 已存在时验证它属于同一 Git 仓库且没有其他任务的未完成改动；首次派发切到任务分支的 detached 基线，恢复任务保留原分支和进度。无法确认来源时不复用。
 3. 写入 `<project-worktree>/.skills`，每行一个必要 skill 名。
-4. 使用 `git -C <project-worktree> status --short` 确认 `.skills` 已被忽略且没有其他未提交内容，再交给 implementation subagent。
+4. 确认 `.skills` 已被忽略，连同项目路径、任务记录和 `Base Commit` 下发。恢复时按 implementation flow 处理已有修改，不因本任务安装生成的根锁文件修改停止。
 
 ## 阶段 3：分批执行和集成
 
@@ -62,8 +62,8 @@ git -C develop merge workflow/<task-id>/<project-worktree>
 ```
 
 3. 一个 slot 释放后再启动下一个等待项目，直到全部完成。不要要求所有项目都 spawn 后才开始等待。
-4. merge conflict 由 main agent 在当前 merge 中处理；项目实现问题重新派回对应 implementation subagent，main agent 不替代其实现。
-5. 全部项目 merge 后完成根配置、长期文档、跨项目引用和整体测试入口等根级集成，并记录到根 `log.md`。
+4. merge conflict 由 main agent 处理；项目实现问题重新派回 implementation subagent。需要同步项目基线时，先确认该 subagent 已停止修改 worktree；已集成分支 fast-forward 到任务分支，来源明确的并行分叉合入任务分支后继续，来源不明时调查。同步前保留未提交工作，并在项目记录和根日志中更新 `Base Commit`。
+5. 全部项目 merge 后完成本任务涉及的根配置、长期文档和跨项目集成，正常安装依赖、更新根锁文件并运行整体测试；结果写入根 `log.md`，通过后提交集成结果。
 
 ## 阶段 4：总体验收和合并 main
 
@@ -73,12 +73,12 @@ git -C develop merge workflow/<task-id>/<project-worktree>
 git -C develop merge-base --is-ancestor main HEAD
 ```
 
-如果 `main` 已前进，先在 `<task-id>` 中合入 `main`，处理冲突并重新运行整体测试，再进入 review。
+如果 `main` 已前进，先在 `<task-id>` 中合入 `main`，处理冲突并重新运行必要测试，再进入 review。
 
-2. 启动 review subagent，审查 `<task-id>` 相对 `main` 的完整变化、授权路径、记录和测试覆盖。
-3. 项目实现 finding 更新对应任务记录并重新派给 implementation subagent；根配置、workspace 配置、跨项目集成和根文档 finding 由 main agent 修复。修复后重新集成、测试和 review。
-4. review 通过后更新状态和日志，在 `<task-id>` 分支提交最终记录，并确认 `develop/` 工作区干净。
-5. 再次确认 `main/` 当前分支为 `main`、工作区干净且 `main` 仍是 `<task-id>` 的祖先，然后使用 merge commit 保留任务边界：
+2. 确认必要测试通过、全部待审改动已提交且 `develop/` 干净。将 `main` 的完整 SHA 作为 `Base Commit`、任务分支 HEAD 作为 `Reviewed Commit` 下发 review；审查期间不修改候选版本。
+3. 项目实现 finding 派回对应 subagent；根配置、跨项目集成和根文档 finding 由 main agent 修复。修复后重新集成、验证并提交，再对新的候选版本 review。
+4. review 通过后，只追加审查结果和更新完成状态，按 task format 记录两个 SHA 并提交。检查 `git -C develop diff <reviewed-commit> HEAD`：代码、配置、长期文档、授权路径或验收标准有变化时，补充验证并重新 review。
+5. 确认两个 worktree 干净、`main/` 当前分支为 `main` 且 HEAD 仍等于审查基线；不一致时回到第 1 步重新同步和验收。一致时使用 merge commit 保留任务边界：
 
 ```bash
 git -C main merge --no-ff <task-id>

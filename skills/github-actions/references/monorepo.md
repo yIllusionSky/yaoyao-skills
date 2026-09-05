@@ -20,7 +20,7 @@
 
 不要为每个服务复制一套基础 CI。服务特有的数据库、协议或端到端测试作为同一 workflow 的额外 job；只有具备可靠依赖图时才缩小到 affected-only，并保留全量验证。
 
-仓库不创建、读取或要求 `rust-toolchain.toml` 与 `rust-toolchain`。本地命令使用开发者当前激活的 toolchain；GitHub Actions 和 Docker builder 独立使用 `stable`。
+新项目默认不创建固定 Rust 工具链文件，assets 的 GitHub Actions 和 Docker builder 使用 `stable`。已有项目先读取实际工具链配置，维护 workflow 时遵守项目约定。
 
 ## Release 与 Docker
 

@@ -1,6 +1,6 @@
 # REST HTTP Errors
 
-用于所有受本规范管理且存在 REST HTTP adapter 的项目。新项目直接采用本契约；已有项目的最终目标也是本契约，但发现不兼容格式时先报告影响，只有当前任务明确包含错误契约迁移时才修改公开响应和客户端。
+用于新建 HTTP 边界，以及本次涉及的响应格式或错误映射。新项目采用下述契约；已有项目保留现有公开响应，只有当前任务包含迁移时才调整不兼容格式和客户端。
 
 ## 响应契约
 
@@ -37,13 +37,11 @@
 - 未知内部故障统一映射为稳定的内部错误码和 `5xx`，详细 source、数据库错误、堆栈和第三方响应只记录在服务端。
 - domain/application 错误在 HTTP adapter 映射为状态码和客户端错误码；不得让 HTTP 类型或状态码进入 domain。
 - 同一稳定 `code` 不随内部实现变化改变含义；需要不兼容调整时按公开 API 迁移处理。
+- JSON、path 和 query 提取失败、认证或授权 middleware 拒绝、body 限制、404 fallback 与 405 等框架响应也使用统一 envelope 和 request ID；运行时测试覆盖实际错误映射。
 
 ## Axum 与 OpenAPI 一致性
 
-- HTTP adapter 的成功响应类型和错误类型同时实现 Axum `IntoResponse` 与 Utoipa `IntoResponses`，使运行时状态、body 和 OpenAPI 描述来自同一组类型；具体规则见 [Axum OpenAPI contracts](./openapi-contracts.md)。
-- 错误 body 共用本文件定义的 envelope，但每个 handler 只公开其 operation 完整请求链实际可能返回的错误状态，包括相关 extractor、middleware 和 application 失败；不得用包含全部状态的全局响应集合污染所有 endpoint。
-- JSON、path 和 query 提取失败、认证或授权 middleware 拒绝、body 限制、404 fallback 与 405 等框架响应也必须映射为同一错误 envelope，并携带 request ID。
-- 契约测试必须确认生成的状态码和 schema 与真实 `IntoResponse` 映射一致，不能只验证 OpenAPI 可以成功序列化。
+使用 Axum/Utoipa 生成或修改契约时，按 [Axum OpenAPI contracts](./openapi-contracts.md) 定义响应类型、完整错误状态和一致性测试。普通错误修复不因此引入契约生成工具。
 
 ## 本地化
 

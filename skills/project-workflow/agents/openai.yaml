@@ -2,3 +2,6 @@ interface:
   display_name: "Project Workflow"
   short_description: "基于 main 的 worktree、subagent 和 review 闭环"
   default_prompt: "使用 $project-workflow 规划或执行本地项目任务编排流程。"
+
+policy:
+  allow_implicit_invocation: false

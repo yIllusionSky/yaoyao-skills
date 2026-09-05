@@ -12,7 +12,7 @@ src/
 └── error.rs
 ```
 
-- `main.rs`：安装 `color-eyre`、解析 `clap` 参数、调用 `run`。
+- `main.rs`：初始化并调用 `run`，技术选型见主 skill。
 - `cli.rs`：只定义命令和参数。
 - `run.rs`：在规模较小时承载单一执行流程和少量内聚逻辑；当命令流程、业务规则或具体 IO 需要独立维护时，将对应职责抽取为命令模块、按业务能力命名的模块或 adapter 模块。
 - `error.rs`：需要结构化错误时使用 `thiserror`。
@@ -39,7 +39,6 @@ src/
 - `commands` 按用户可执行命令组织入口，不承载共享业务规则。
 - `manifest`、`policy` 是示意业务能力，共享规则按真实领域命名，不汇总到泛化 `core.rs`。
 - `adapters` 只放文件、网络、时间或外部命令等 IO。
-- 各 `mod.rs` 只声明模块和受控导出。
 
 ## 小型 Library Crate
 
@@ -68,9 +67,20 @@ src/
 └── error.rs
 ```
 
-模块按能力或公开概念拆分。不要为了目录对称创建空文件，也不要让 `client.rs` 同时承担配置、签名、协议类型和全部实现。
+配置、签名和请求构造独立变化后分别归入对应模块，避免全部追加到 `client.rs`。
 
-## 小型后端服务
+## 简单后端服务
+
+```text
+src/
+├── main.rs
+├── http.rs
+└── health.rs
+```
+
+适合少量健康检查或简单查询接口：`main.rs` 组装并启动，`http.rs` 处理传输，`health.rs` 承载对应能力。出现复杂业务规则或多个外部边界时，再按主 skill 选择依赖结构。
+
+## 已采用四类边界的小型后端
 
 ```text
 src/
@@ -89,7 +99,6 @@ src/
 
 - 仅当每层仍只有一个内聚能力时使用平铺文件。
 - `adapters.rs` 只声明实际存在的 adapter。
-- `main.rs` 只组装配置、日志、运行时和依赖。
 - 任一层出现第二个可独立变化的业务能力时，改用目录模块，不继续扩张单文件。
 
 ## 增长后的后端服务
@@ -134,11 +143,7 @@ src/
 └── main.rs
 ```
 
-- 四层是依赖分类；层内文件按业务能力、聚合或用例拆分。
-- port 按调用方所需能力命名，不建立覆盖整个服务的 repository trait。
-- HTTP route 和 DB 实现都继续按业务能力拆分；`shared.rs` 只放确实跨模块共享的底层机制，不接收无归属逻辑。
-- `mod.rs` 只声明模块和受控导出，不承载整层实现。
-- DTO、事务和跨层错误放置遵守 [backend design](./backend-design.md)。
+`courses`、`questions` 等对应不同能力的 HTTP 和 DB 实现；`shared.rs` 仅在存在明确的底层共享机制时使用。职责、DTO、事务和错误边界遵守 [backend design](./backend-design.md)。
 
 ## 同时提供 CLI 和 Library
 
@@ -154,7 +159,6 @@ src/
 └── error.rs
 ```
 
-- `main.rs` 负责 `clap`、`color-eyre` 和调用 library。
 - `commands` 只服务 CLI；可复用能力由 `lib.rs` 暴露。
 - library 模块不依赖 CLI 参数类型或顶层报告类型。
 
@@ -179,6 +183,4 @@ crates/
         └── error.rs
 ```
 
-- capability crate 只负责自身协议和能力，不知道主业务流程，也不依赖主业务 crate。
-- 主服务通过 adapter 把 capability crate 接回对应 port。
-- 文件变长本身不足以拆 crate；依赖隔离、所有权、稳定 API、独立测试或构建形态必须至少有一项明确收益。
+`third-party-client` 和 `object-storage` 分别封装稳定的外部能力，主服务通过 adapter 将它们接回 port。是否拆 crate 按主 skill 的判据决定。

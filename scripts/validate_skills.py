@@ -84,6 +84,12 @@ def validate_skills() -> None:
                 fail(f"missing {field} in {agent_file}")
         if f"${name}" not in agent:
             fail(f"default_prompt must mention ${name}: {agent_file}")
+        if name == "project-workflow":
+            policy = re.search(r"(?m)^policy:\n((?:[ \t]+[^\n]*\n?)*)", agent)
+            if policy is None or not re.search(
+                r"(?m)^  allow_implicit_invocation: false[ \t]*$", policy.group(1),
+            ):
+                fail("project-workflow must require explicit invocation")
 
 
 def validate_links() -> None:
@@ -219,7 +225,11 @@ def validate_copy_assets() -> None:
 
         monorepo = root / "monorepo"
         write_monorepo(monorepo)
+        existing_toolchain = '[toolchain]\nchannel = "1.86.0"\n'
+        write(monorepo / "rust-toolchain.toml", existing_toolchain)
         run_copy("monorepo-ci", "--target", str(monorepo))
+        if (monorepo / "rust-toolchain.toml").read_text() != existing_toolchain:
+            fail("copying CI changed the project's existing toolchain configuration")
         monorepo_workflow = (
             monorepo / ".github/workflows/monorepo-ci.yml"
         ).read_text(encoding="utf-8")
@@ -670,24 +680,6 @@ def validate_copy_assets() -> None:
             fail("failed validation produced partial output")
 
 
-def validate_protocols() -> None:
-    project = (SKILLS / "project-workflow/references/main-agent-flow.md").read_text(encoding="utf-8")
-    implementation = (
-        SKILLS / "project-workflow/references/implementation-subagent-flow.md"
-    ).read_text(encoding="utf-8")
-    task_format = (SKILLS / "project-workflow/references/task-format.md").read_text(encoding="utf-8")
-    if "switch --detach main" not in project:
-        fail("project-workflow does not reset new tasks to main")
-    if "git -C main merge --no-ff <task-id>" not in project:
-        fail("project-workflow does not merge completed tasks to main")
-    if "可用 agent slot" not in project:
-        fail("project-workflow does not batch subagents by available slots")
-    if "git merge --ff-only <task-id>" not in implementation:
-        fail("project-workflow cannot refresh a project branch after review")
-    if "依次追加 `-2`、`-3`" not in task_format:
-        fail("project-workflow does not resolve project worktree name collisions")
-
-
 def git(repository: Path, *args: str, expect_success: bool = True) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
         ["git", "-C", str(repository), *args],
@@ -712,7 +704,14 @@ def initialize_repository(repository: Path) -> None:
     git(repository, "commit", "-m", "initial")
 
 
+def commit_files(repository: Path, message: str, *paths: str) -> str:
+    git(repository, "add", "--", *paths)
+    git(repository, "commit", "-m", message)
+    return git(repository, "rev-parse", "HEAD").stdout.strip()
+
+
 def validate_git_protocols() -> None:
+    """Exercise Git behavior used by the prompts, not model instruction following."""
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
 
@@ -757,14 +756,134 @@ def validate_git_protocols() -> None:
         git(integration, "merge-base", "--is-ancestor", "task-a", "task-b")
 
 
+def validate_parallel_worktrees() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        project, integration = root / "main", root / "develop"
+        agent_a, agent_b = root / "apps-a", root / "apps-b"
+        initialize_repository(project)
+        git(project, "worktree", "add", "--detach", str(integration), "main")
+        git(integration, "switch", "-c", "task-a")
+        write(integration / "Cargo.lock", "baseline Rust resolution\n")
+        write(integration / "bun.lock", "baseline Bun resolution\n")
+        base = commit_files(integration, "prepare task", "Cargo.lock", "bun.lock")
+
+        for worktree, name in ((agent_a, "a"), (agent_b, "b")):
+            record = f".workflow/task-a/apps-{name}/task.md"
+            write(integration / record, f"Status: in-progress\nBase Commit: {base}\n")
+            commit_files(integration, f"dispatch {name}", record)
+            git(integration, "worktree", "add", "--detach", str(worktree), "task-a")
+            git(worktree, "switch", "-c", f"workflow/task-a/apps-{name}")
+            write(worktree / f"apps/{name}/source.txt", f"implement {name}\n")
+            # Simulate installation output; package-manager resolution is not under test.
+            write(worktree / "Cargo.lock", f"local Rust resolution {name}\n")
+            write(worktree / "bun.lock", f"local Bun resolution {name}\n")
+            commit_files(worktree, f"implement {name}", f"apps/{name}/source.txt")
+            changed = set(git(worktree, "diff", "--name-only", base, "HEAD").stdout.splitlines())
+            if changed & {"Cargo.lock", "bun.lock"}:
+                fail("project commit includes locally generated root lockfiles")
+
+        git(integration, "merge", "--no-edit", "workflow/task-a/apps-a")
+        write(integration / "root.txt", "integrated a\n")
+        commit_files(integration, "integrate a", "root.txt")
+
+        # B has legitimate unmerged commits while the integration branch moves ahead.
+        git(agent_b, "merge-base", "--is-ancestor", "task-a", "HEAD", expect_success=False)
+        git(agent_b, "merge-base", "--is-ancestor", "HEAD", "task-a", expect_success=False)
+        git(agent_b, "merge-base", "--is-ancestor", base, "HEAD")
+        write(agent_b / "apps/b/source.txt", "finish interrupted b\n")
+        commit_files(agent_b, "resume b", "apps/b/source.txt")
+        git(integration, "merge", "--no-edit", "workflow/task-a/apps-b")
+        if git(integration, "status", "--porcelain").stdout:
+            fail("local changes in project worktrees leaked into integration")
+
+        for name in ("a", "b"):
+            if not (integration / f"apps/{name}/source.txt").is_file():
+                fail(f"parallel project {name} was not integrated")
+        write(integration / "Cargo.lock", "combined Rust resolution\n")
+        write(integration / "bun.lock", "combined Bun resolution\n")
+        sync_base = commit_files(integration, "integrate dependencies", "Cargo.lock", "bun.lock")
+        record = ".workflow/task-a/apps-b/task.md"
+        write(integration / record, f"Status: in-progress\nBase Commit: {sync_base}\n")
+        commit_files(integration, "dispatch review fix", record)
+
+        # Local generated locks may block a later sync, not merging into develop.
+        write(agent_b / "unrelated-notes.txt", "preserve this work\n")
+        git(agent_b, "merge", "--ff-only", "task-a", expect_success=False)
+        git(agent_b, "restore", "--source=HEAD", "--", "Cargo.lock", "bun.lock")
+        git(agent_b, "merge", "--ff-only", "task-a")
+        git(agent_b, "merge-base", "--is-ancestor", sync_base, "HEAD")
+        if (agent_b / "unrelated-notes.txt").read_text() != "preserve this work\n":
+            fail("lockfile synchronization discarded unrelated work")
+        if (agent_b / "apps/b/source.txt").read_text() != "finish interrupted b\n":
+            fail("baseline synchronization lost the resumed implementation")
+        if (agent_a / "Cargo.lock").read_text() != "local Rust resolution a\n":
+            fail("synchronization changed another project's local lockfile")
+
+
+def validate_review_snapshots() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        repository = Path(directory) / "project"
+        initialize_repository(repository)
+        write(repository / "root.conf", "old configuration\n")
+        task = ".workflow/task-a/task.md"
+        log = ".workflow/task-a/log.md"
+        write(repository / task, "Status: in-progress\n")
+        base = commit_files(repository, "baseline", "root.conf", task)
+        git(repository, "switch", "-c", "task-a")
+        write(repository / "source.txt", "implemented\n")
+        incomplete = commit_files(repository, "implementation", "source.txt")
+        write(repository / "root.conf", "integrated configuration\n")
+        write(repository / "operations.md", "integrated documentation\n")
+        committed_paths = set(git(repository, "diff", "--name-only", base, incomplete).stdout.splitlines())
+        if committed_paths != {"source.txt"} or not git(repository, "status", "--porcelain").stdout:
+            fail("review fixture must expose changes omitted by a commit-only diff")
+
+        reviewed = commit_files(repository, "prepare review", "root.conf", "operations.md")
+        if git(repository, "status", "--porcelain").stdout:
+            fail("review candidate is not clean")
+        git(repository, "merge-base", "--is-ancestor", base, reviewed)
+        reviewed_paths = set(git(repository, "diff", "--name-only", base, reviewed).stdout.splitlines())
+        if reviewed_paths != {"source.txt", "root.conf", "operations.md"}:
+            fail("review candidate does not include all integration changes")
+        snapshot = git(repository, "diff", base, reviewed).stdout
+
+        write(repository / task, "Status: completed\n")
+        write(repository / log, f"Base Commit: {base}\nReviewed Commit: {reviewed}\nStatus: passed\n")
+        commit_files(repository, "record review result", task, log)
+        after_review = set(git(repository, "diff", "--name-only", reviewed, "HEAD").stdout.splitlines())
+        if after_review != {task, log}:
+            fail("record-only completion unexpectedly changes implementation")
+        if git(repository, "diff", base, reviewed).stdout != snapshot:
+            fail("completion metadata changed the recorded review snapshot")
+
+        # A code change under the same task branch is a new review candidate.
+        write(repository / "source.txt", "changed after review\n")
+        commit_files(repository, "change after review", "source.txt")
+        if "source.txt" not in git(repository, "diff", "--name-only", reviewed, "HEAD").stdout.splitlines():
+            fail("post-review code changes are missing from the completion diff")
+
+        # A moving main ref must not silently change the scope of a previous review.
+        git(repository, "switch", "main")
+        write(repository / "README.md", "advanced main\n")
+        new_base = commit_files(repository, "advance main", "README.md")
+        if new_base == base or git(repository, "diff", base, reviewed).stdout != snapshot:
+            fail("review snapshot is not stable when main advances")
+        git(repository, "switch", "task-a")
+        git(repository, "merge-base", "--is-ancestor", "main", "HEAD", expect_success=False)
+        git(repository, "merge", "--no-edit", "main")
+        git(repository, "merge-base", "--is-ancestor", new_base, "HEAD")
+
+
 def main() -> None:
     validate_skills()
     validate_links()
     validate_action_pins()
     validate_release_lifecycle()
     validate_copy_assets()
-    validate_protocols()
     validate_git_protocols()
+    validate_parallel_worktrees()
+    validate_review_snapshots()
     print("all skill validations passed")
 
 

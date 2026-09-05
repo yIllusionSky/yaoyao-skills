@@ -1,6 +1,6 @@
 # Axum OpenAPI Contracts
 
-用于新建 Rust REST HTTP 后端，以及从 Rust HTTP adapter 生成跨语言 OpenAPI 契约和 TypeScript 客户端的项目。已有项目先遵守其合理框架与公开契约；只有任务明确包含迁移时才更换框架或响应格式。
+用于本次涉及的 OpenAPI 契约生成、调整和 TypeScript 客户端。已有项目先遵守其合理框架与公开契约；只有任务明确包含迁移时才更换框架或响应格式。
 
 ## 默认技术栈与边界
 
@@ -89,6 +89,6 @@ cargo run -p <api> --bin export-openapi -- --output contracts/<api>/openapi.json
 
 - 根 `contracts:generate` 按“导出全部 OpenAPI JSON → 为每份契约运行 `openapi-typescript`”的顺序更新产物，不改写 client package 中的手写入口。
 - 根 `contracts:check` 在临时位置重新生成并与已提交产物比较，或使用工具提供的只检查模式；检查命令本身不得修改工作树。
-- Rust 测试至少验证 router 能生成 OpenAPI、关键 path/method/status/schema 存在，以及统一响应类型的 `IntoResponse` 与 `IntoResponses` 保持一致。
+- Rust 测试至少验证 router 能生成 OpenAPI、关键 path/method/status/schema 存在，以及 `IntoResponse` 的实际状态码和 body 与 `IntoResponses` 声明一致，不能只验证文档能序列化。
 - TypeScript 执行 typecheck，并至少用一个成功响应、一个业务错误以及 path/query/body 参数验证 `openapi-fetch` 推导；不使用手写类型断言掩盖契约错误。
 - pull request 对 Rust 路由、DTO、错误映射或契约生成配置的修改必须执行 `contracts:check`。具体 workflow 资产由 `github-actions` 技能维护。
