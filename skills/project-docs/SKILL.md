@@ -9,11 +9,11 @@ description: 项目文档规范技能。用于创建、审查或维护长期项�
 
 只描述当前真实状态，不编造未实现能力，不写 roadmap、临时方案、issue 分析或一次性实现计划。不处理 issue、PR、changelog、commit、API 文档、临时设计文档或架构决策记录。
 
-局部任务按本次 diff 检查受影响的文档，不顺带补齐全仓库历史缺项；新建项目或明确的文档整理任务按下述职责建立文档。已有职责等价的文档优先沿用，不为文件名一致迁移。
+按本次任务建立和维护所需文档，不扩展到无关部分。
 
 ## 文档结构
 
-默认文档位置与职责，按实际需要创建：
+文档位置与职责，按实际需要维护：
 
 ```text
 README.md
@@ -34,7 +34,7 @@ docs/
 - `docs/features.md`：长期功能、业务规则和用户可见能力。
 - `docs/features/<功能域>.md`：当单个 `features.md` 不足以清晰描述复杂功能域时，按功能域拆分的长期功能文档。
 - `docs/operations.md`：配置、部署、运行、日志、排障和维护信息。
-- `<子项目>/README.md`：新建独立子项目、crate、package、service 或 app 时提供自身说明；已有项目按本次任务范围维护。
+- `<子项目>/README.md`：每个独立子项目、crate、package、service 或 app 都维护自己的 README。
 - `<子项目>/manual-tests.md`：可运行子项目的手动测试文档；按入口类型写可执行或可复现的测试步骤。
 
 ## README

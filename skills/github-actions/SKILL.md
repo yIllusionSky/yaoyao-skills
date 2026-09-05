@@ -5,14 +5,14 @@ description: 创建或维护 Rust 项目及 TypeScript + Rust monorepo 的 GitHu
 
 # GitHub Actions
 
-新建 workflow 优先用 `scripts/copy_assets.py` 复制最接近的 asset。维护已有 workflow 时先读取实际命令和工具链配置，仅修改本次涉及的部分；assets 提供默认实现，不覆盖项目已有的合理约定。
+workflow 和部署配置遵守对应 assets 的实现规则。需要复制文件时使用 `scripts/copy_assets.py`；修改前读取目标项目的实际命令和配置，只调整本次任务涉及的部分。
 
 - 说明文字使用中文；GitHub Actions 字段、命令、文件名和固定关键词保持原文。
-- Docker assets 是已有项目的部署叠加层，不创建 Rust、Tauri 或 frontend 应用源码。
+- Docker assets 只提供部署配置，不创建 Rust、Tauri 或 frontend 应用源码。
 - 复制前验证目标项目和全部冲突；验证失败时不写入任何文件。
 - 默认不覆盖已有文件；只有用户明确要求时使用 `--force`。
 - release workflow 先创建 draft，所有平台产物成功上传后再公开发布。
-- monorepo 任务读取 [monorepo](./references/monorepo.md)；新建时使用 `assets/monorepo/` 中与独立项目隔离的 workflow 和 Docker 资产。
+- monorepo 任务读取 [monorepo](./references/monorepo.md)，使用 `assets/monorepo/` 中与独立项目隔离的 workflow 和 Docker 资产。
 
 ## 复制命令
 
@@ -36,4 +36,4 @@ python3 <skill-path>/scripts/copy_assets.py docker --target <project-root> --ser
 - `docker`：`server` 是可以离开父 workspace 单独构建的 crate，存在 `server/Cargo.toml` 和 `server/Cargo.lock`，不使用 workspace 继承或指向 `server/` 外部的 path dependency。
 - `docker --with-client`：除 server 前置条件外，存在 `client/package.json` 和 `client/bun.lock`，并显式依赖 `@sveltejs/adapter-node`，`build` 脚本产生 `build/index.js`。
 
-复制完成后，按目标项目实际命令审查 workflow 并运行 `actionlint`。Action 使用完整 commit SHA 固定版本，并在同行注释精确 release tag；没有 release tag 的 toolchain action 注释固定 channel。
+workflow 变更后，按目标项目实际命令审查并运行 `actionlint`。Action 使用完整 commit SHA 固定版本，并在同行注释精确 release tag；没有 release tag 的 toolchain action 注释固定 channel。

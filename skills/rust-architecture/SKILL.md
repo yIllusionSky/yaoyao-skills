@@ -45,7 +45,7 @@ description: Rust 项目架构技能。用于规划、创建、审查或重构 R
 
 ## 结构选择
 
-- 简单 CLI 或小工具：使用 `clap`，入口安装 `color-eyre`、解析参数并调用核心入口；业务错误需要调用方匹配时使用 `thiserror`。纯逻辑和 IO 开始独立变化后再拆 `commands`、业务模块和 adapters。
+- CLI 或小工具：使用 `clap`，入口安装 `color-eyre` 后解析参数并调用核心入口；业务错误需要调用方匹配时使用 `thiserror`。纯逻辑和 IO 开始独立变化后，再拆 `commands`、业务模块和 adapters。
 - 普通 library crate：使用 `thiserror` 定义可匹配错误，声明支持的 `rust-version`。少量内聚类型可以同文件，增长后按领域命名拆分，避免长期使用泛化 `types.rs`。
 - 后端服务或复杂应用：REST 后端使用 Axum、`utoipa` 和 `utoipa-axum`，按契约参考生成 OpenAPI；依赖职责按“顶层边界”选择，需要被集成测试、辅助 binary 或其他 crate 复用时增加 `lib.rs`。
 - 同时提供 CLI 和 library：CLI 负责参数和顶层报告，可复用能力留在 library 模块。

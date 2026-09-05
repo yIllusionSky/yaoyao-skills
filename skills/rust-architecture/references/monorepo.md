@@ -2,7 +2,7 @@
 
 用于同一仓库同时包含 Bun workspace 与 Cargo workspace 的项目。monorepo 只统一所有权、依赖方向和仓库级验证，不要求所有应用使用同一种内部架构，也不为目录对称创建空的 TypeScript 或 Rust 项目。
 
-仅处理本次涉及的边界；已有合理目录和工具链约定继续沿用，迁移须属于当前任务。
+只调整本次任务涉及的边界。
 
 ## 业务优先布局
 
@@ -55,7 +55,7 @@
 
 ## 工具链与仓库命令
 
-- 新项目默认不创建 `rust-toolchain.toml` 或 `rust-toolchain`，本地使用当前激活的 Rust；已有项目读取并遵守实际工具链配置。
+- 仓库不使用 `rust-toolchain.toml` 或 `rust-toolchain`；本地使用当前激活的 Rust，CI 和 Docker builder 使用 `stable`。
 - Bun 版本只在根 `package.json` 的 `packageManager` 中声明一次，所有 workspace 共用。
 - 根脚本只负责编排 workspace，不容纳业务实现；单个应用仍保留可独立执行的本地 check、test 和 build 命令。
 - 存在生成式 HTTP 契约时，根目录提供 `contracts:generate` 和不修改工作树的 `contracts:check`，具体生成流程遵守契约参考。
